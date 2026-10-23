@@ -7,6 +7,7 @@ import {
   type ParseError,
   printParseErrorCode,
 } from 'jsonc-parser';
+import type { PackageManager } from './types.js';
 
 /** Never copy these into a generated project. */
 const EXCLUDED_DIRECTORIES = new Set([
@@ -192,10 +193,22 @@ export function rewriteWranglerConfig(
   );
 }
 
-export function rewritePackageJson(source: string, projectName: string): string {
+/**
+ * The template pins pnpm through `packageManager`, and its `pnpm.overrides`
+ * only work with that major version, so the pin is kept for pnpm projects.
+ * Other package managers would refuse to run under a pnpm pin, so it is
+ * dropped for them.
+ */
+export function rewritePackageJson(
+  source: string,
+  projectName: string,
+  packageManager: PackageManager = 'pnpm'
+): string {
   const parsed = JSON.parse(source) as Record<string, unknown>;
   parsed.name = projectName;
-  delete parsed.packageManager;
+  if (packageManager !== 'pnpm') {
+    delete parsed.packageManager;
+  }
   return `${JSON.stringify(parsed, null, 2)}\n`;
 }
 

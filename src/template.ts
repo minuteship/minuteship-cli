@@ -4,7 +4,10 @@ import path from 'node:path';
 
 const DEFAULT_REPO =
   process.env.CREATE_MINUTESHIP_REPO ?? 'minuteship/minuteship';
-const DEFAULT_REF = process.env.CREATE_MINUTESHIP_REF ?? 'main';
+// Pin a released template tag so a template change on main cannot break a CLI
+// that was built against an older layout. Bump it together with the template.
+export const TEMPLATE_VERSION = 'v0.1.0';
+const DEFAULT_REF = process.env.CREATE_MINUTESHIP_REF ?? TEMPLATE_VERSION;
 
 export interface TemplateSource {
   dir: string;
@@ -25,7 +28,7 @@ export async function fetchTemplate(): Promise<TemplateSource> {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'create-minuteship-'));
   const { downloadTemplate } = await import('giget');
 
-  const result = await downloadTemplate(`${DEFAULT_REPO}#${DEFAULT_REF}`, {
+  const result = await downloadTemplate(`github:${DEFAULT_REPO}#${DEFAULT_REF}`, {
     dir: path.join(tempRoot, 'template'),
     auth: token,
     forceClean: true,

@@ -11,6 +11,7 @@ import {
   rewriteWranglerConfig,
   type WebsiteRewriteOptions,
 } from './files.js';
+import type { PackageManager } from './types.js';
 
 export interface CloudflareResourceIds {
   databaseId?: string;
@@ -22,6 +23,7 @@ export interface CloudflareResourceIds {
 export interface TemplateRewriteOptions extends WebsiteRewriteOptions {
   projectName: string;
   siteName: string;
+  packageManager?: PackageManager;
   /** Reuse the secret from the CLI so every env file matches. */
   authSecret?: string;
   domain?: string;
@@ -43,7 +45,11 @@ export async function applyTemplateRewrites(
 
   await write(
     'package.json',
-    rewritePackageJson(await read('package.json'), options.projectName)
+    rewritePackageJson(
+      await read('package.json'),
+      options.projectName,
+      options.packageManager
+    )
   );
 
   if (await pathExists(path.join(targetDir, '.cta.json'))) {

@@ -24,6 +24,7 @@ export function toTemplateRewriteOptions(
   return {
     projectName: String(options.projectName),
     siteName: String(options.siteName),
+    packageManager: options.packageManager,
     authSecret,
     paymentProvider:
       provider === 'stripe' || provider === 'creem' || provider === 'waffo'

@@ -183,17 +183,25 @@ describe('rewriteWranglerConfig', () => {
 });
 
 describe('rewritePackageJson / rewriteCtaJson', () => {
-  it('renames the package and drops the inherited packageManager field', () => {
-    const result = rewritePackageJson(
-      JSON.stringify({
-        name: 'minuteship',
-        packageManager: 'pnpm@10.30.3',
-        private: true,
-      }),
-      'acme'
-    );
+  const source = JSON.stringify({
+    name: 'minuteship',
+    packageManager: 'pnpm@10.30.3',
+    private: true,
+  });
 
-    expect(JSON.parse(result)).toEqual({ name: 'acme', private: true });
+  it('renames the package and keeps the pnpm pin for pnpm projects', () => {
+    expect(JSON.parse(rewritePackageJson(source, 'acme', 'pnpm'))).toEqual({
+      name: 'acme',
+      packageManager: 'pnpm@10.30.3',
+      private: true,
+    });
+  });
+
+  it('drops the pnpm pin for other package managers', () => {
+    expect(JSON.parse(rewritePackageJson(source, 'acme', 'npm'))).toEqual({
+      name: 'acme',
+      private: true,
+    });
   });
 });
 

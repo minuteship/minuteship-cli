@@ -39,7 +39,7 @@ Environment:
 | Variable | Description |
 | --- | --- |
 | `CREATE_MINUTESHIP_REPO` | Template repository (`owner/name`). Defaults to `minuteship/minuteship`. |
-| `CREATE_MINUTESHIP_REF` | Git ref to download. Defaults to `main`. |
+| `CREATE_MINUTESHIP_REF` | Git ref to download. Defaults to the template tag this CLI release was built against (`TEMPLATE_VERSION` in `src/template.ts`). |
 | `CREATE_MINUTESHIP_TEMPLATE_DIR` | Use a local directory instead of downloading (offline development and tests). |
 | `GITHUB_TOKEN` | Token for the private template repository. Never printed. |
 

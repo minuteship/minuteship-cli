@@ -90,7 +90,7 @@ describe('applyTemplateRewrites', () => {
       await readFile(path.join(root, 'package.json'), 'utf8')
     ) as Record<string, unknown>;
     expect(packageJson.name).toBe('acme');
-    expect(packageJson.packageManager).toBeUndefined();
+    expect(packageJson.packageManager).toBe('pnpm@10.30.3');
 
     const cta = JSON.parse(
       await readFile(path.join(root, '.cta.json'), 'utf8')
