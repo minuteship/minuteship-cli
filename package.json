@@ -20,6 +20,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/index.js', 0o755)\"",
+    "prepare": "pnpm run build",
     "docs:sync": "tsx scripts/sync-cli-docs.ts",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
