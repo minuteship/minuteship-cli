@@ -1,0 +1,189 @@
+import { OPTIONS, isActive } from './registry.js';
+import { ENV_TARGETS, type CreateOptions, type OptionSpec } from './types.js';
+
+export interface RenderEnvInput {
+  options: CreateOptions;
+  /** Generated when the user did not supply one. */
+  authSecret: string;
+  /** Filled in after the D1 database exists. */
+  databaseId?: string;
+  /** Values that are not part of the option registry. */
+  extra?: Record<string, string>;
+}
+
+export interface RenderedEnv {
+  local: string;
+  production: string;
+  /** Runtime-only secrets, in dotenv form for `wrangler secret bulk`. */
+  workerSecrets: string;
+  /** Values to push with `gh secret set`. */
+  githubSecrets: Record<string, string>;
+}
+
+const GROUP_TITLES: Record<OptionSpec['group'], string> = {
+  project: 'Project',
+  features: 'Features',
+  cloudflare: 'Cloudflare',
+  auth: 'Authentication',
+  payment: 'Payment',
+  mail: 'Mail',
+  newsletter: 'Newsletter',
+  notification: 'Notification',
+  analytics: 'Analytics',
+  chat: 'Chat',
+  ai: 'AI',
+};
+
+const GROUP_ORDER: OptionSpec['group'][] = [
+  'project',
+  'cloudflare',
+  'auth',
+  'payment',
+  'mail',
+  'newsletter',
+  'notification',
+  'analytics',
+  'chat',
+  'ai',
+];
+
+export function quoteEnvValue(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+function serialize(
+  spec: OptionSpec,
+  options: CreateOptions
+): string | undefined {
+  const raw = options[spec.key];
+  if (spec.kind === 'boolean') {
+    return raw === undefined ? undefined : String(raw === true);
+  }
+  if (typeof raw !== 'string' || raw.trim() === '') return undefined;
+  return raw.trim();
+}
+
+function sectionTitle(group: OptionSpec['group']): string {
+  return `# ${'-'.repeat(77)}\n# ${GROUP_TITLES[group]}\n# ${'-'.repeat(77)}`;
+}
+
+function renderFile(
+  header: string[],
+  values: Map<string, string>
+): string {
+  const lines = [...header];
+  const grouped = new Map<OptionSpec['group'], string[]>();
+  const consumed = new Set<string>();
+
+  for (const spec of OPTIONS) {
+    if (!spec.envVar) continue;
+    const value = values.get(spec.envVar);
+    if (value === undefined) continue;
+    consumed.add(spec.envVar);
+    const groupLines = grouped.get(spec.group) ?? [];
+    groupLines.push(`${spec.envVar}=${quoteEnvValue(value)}`);
+    grouped.set(spec.group, groupLines);
+  }
+
+  for (const group of GROUP_ORDER) {
+    const groupLines = grouped.get(group);
+    if (!groupLines || groupLines.length === 0) continue;
+    lines.push('', sectionTitle(group), ...groupLines);
+  }
+
+  const extras = [...values.entries()].filter(([key]) => !consumed.has(key));
+  if (extras.length > 0) {
+    lines.push('', '# Additional');
+    for (const [key, value] of extras) {
+      lines.push(`${key}=${quoteEnvValue(value)}`);
+    }
+  }
+
+  return `${lines.join('\n').replace(/\n+$/, '')}\n`;
+}
+
+/**
+ * Build every env artifact from the same resolved options:
+ * `.env.local`, `.env.production`, Worker secrets, and GitHub secrets.
+ *
+ * `VITE_*` values are build-time only, so they never enter Worker secrets.
+ */
+export function renderEnv(input: RenderEnvInput): RenderedEnv {
+  const { options, authSecret, databaseId } = input;
+  const extra = input.extra ?? {};
+
+  const local = new Map<string, string>();
+  const production = new Map<string, string>();
+  const worker = new Map<string, string>();
+  const github: Record<string, string> = {};
+
+  for (const spec of OPTIONS) {
+    if (!spec.envVar) continue;
+    if (!isActive(spec, options)) continue;
+
+    const value = serialize(spec, options);
+    if (value === undefined) continue;
+
+    const targets = spec.targets ?? ENV_TARGETS;
+    if (targets.includes('env.local')) local.set(spec.envVar, value);
+    if (targets.includes('env.production')) production.set(spec.envVar, value);
+    if (targets.includes('worker.secret')) worker.set(spec.envVar, value);
+    if (targets.includes('github.secret')) github[spec.envVar] = value;
+  }
+
+  // Generated values are written everywhere the app or CI needs them.
+  const baseUrl = String(options.baseUrl ?? 'http://localhost:3000');
+  local.set('VITE_BASE_URL', 'http://localhost:3000');
+  production.set('VITE_BASE_URL', baseUrl);
+  github.VITE_BASE_URL = baseUrl;
+
+  local.set('BETTER_AUTH_SECRET', authSecret);
+  production.set('BETTER_AUTH_SECRET', authSecret);
+  worker.set('BETTER_AUTH_SECRET', authSecret);
+  github.BETTER_AUTH_SECRET = authSecret;
+
+  if (databaseId) {
+    local.set('CLOUDFLARE_DATABASE_ID', databaseId);
+    production.set('CLOUDFLARE_DATABASE_ID', databaseId);
+    github.CLOUDFLARE_DATABASE_ID = databaseId;
+  }
+
+  for (const [key, value] of Object.entries(extra)) {
+    if (!value) continue;
+    local.set(key, value);
+    production.set(key, value);
+    github[key] = value;
+  }
+
+  return {
+    local: renderFile(
+      [
+        '# Local development environment. Generated by create-minuteship.',
+        '# This file is gitignored; never commit real credentials.',
+      ],
+      local
+    ),
+    production: renderFile(
+      [
+        '# Production build and runtime environment.',
+        '# Generated by create-minuteship. Keep it out of version control.',
+      ],
+      production
+    ),
+    workerSecrets: renderFile(
+      [
+        '# Runtime Worker secrets, uploaded with `wrangler secret bulk`.',
+        '# Generated by create-minuteship. Do not commit.',
+      ],
+      worker
+    ),
+    githubSecrets: github,
+  };
+}
+
+/** Values that must never appear in logs. */
+export function redactValues(options: CreateOptions): string[] {
+  return OPTIONS.filter((spec) => spec.kind === 'secret')
+    .map((spec) => options[spec.key])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+}

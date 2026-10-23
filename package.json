@@ -1,0 +1,46 @@
+{
+  "name": "create-minuteship",
+  "version": "0.1.0",
+  "description": "Scaffold and deploy a MinuteShip SaaS project to Cloudflare in minutes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minuteship/minuteship-cli.git"
+  },
+  "type": "module",
+  "bin": {
+    "create-minuteship": "./dist/index.js",
+    "minuteship": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/index.js', 0o755)\"",
+    "docs:sync": "tsx scripts/sync-cli-docs.ts",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "better-auth": "~1.6.33",
+    "commander": "^12.1.0",
+    "giget": "^3.3.1",
+    "jsonc-parser": "^3.3.1",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
+    "validator": "^13.15.35"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/prompts": "^2.4.9",
+    "@types/validator": "^13.12.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.12"
+  }
+}
