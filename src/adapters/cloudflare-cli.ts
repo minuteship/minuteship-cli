@@ -13,14 +13,21 @@ export interface CloudflareResourceInput {
   databaseName: string;
   bucketName: string;
   kvName: string;
+  /**
+   * Bindings the project actually reads. A tool site with no storage has no
+   * bucket, and creating one anyway leaves an orphan in the account that
+   * `delete` has no reason to remove.
+   */
+  bindings?: { d1: boolean; r2: boolean; kv: boolean };
   log?: (message: string) => void;
 }
 
 export interface CloudflareResources {
-  databaseId: string;
-  databaseName: string;
-  bucketName: string;
-  kvNamespaceId: string;
+  /** Present only when the project's modules read D1. */
+  databaseId?: string;
+  databaseName?: string;
+  bucketName?: string;
+  kvNamespaceId?: string;
 }
 
 function wrangler(
@@ -143,20 +150,26 @@ async function ensureR2(input: CloudflareResourceInput): Promise<string> {
 }
 
 /**
- * Create the three bindings the template needs, reusing anything that already
+ * Create the bindings the project's modules need, reusing anything that already
  * exists under the same name. Safe to re-run.
  */
 export async function ensureCloudflareResources(
   input: CloudflareResourceInput
 ): Promise<CloudflareResources> {
-  const database = await ensureD1(input);
-  const bucketName = await ensureR2(input);
-  const kvNamespaceId = await ensureKv(input);
+  const bindings = input.bindings ?? { d1: true, r2: true, kv: true };
+  const resources: CloudflareResources = {};
 
-  return {
-    databaseId: database.id,
-    databaseName: database.name,
-    bucketName,
-    kvNamespaceId,
-  };
+  if (bindings.d1) {
+    const database = await ensureD1(input);
+    resources.databaseId = database.id;
+    resources.databaseName = database.name;
+  }
+  if (bindings.r2) {
+    resources.bucketName = await ensureR2(input);
+  }
+  if (bindings.kv) {
+    resources.kvNamespaceId = await ensureKv(input);
+  }
+
+  return resources;
 }

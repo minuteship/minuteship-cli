@@ -29,6 +29,11 @@ export interface ConfigFileInput {
   modules: readonly string[];
   theme: string;
   site: ConfigSite;
+  /**
+   * Where the landing page's primary button points. Omitted leaves the preset's
+   * own choice; the template validates it against the routes the build has.
+   */
+  ctaRoute?: string;
   payment?: { provider: 'stripe' | 'creem' | 'waffo' };
   auth?: {
     googleLogin?: boolean;
@@ -131,6 +136,10 @@ export function renderConfigFile(input: ConfigFileInput): string {
     lines.push('    },');
   }
   lines.push('  },');
+
+  if (input.ctaRoute) {
+    lines.push(`  ctaRoute: ${quote(input.ctaRoute)},`);
+  }
 
   if (input.payment) {
     lines.push('  payment: {');

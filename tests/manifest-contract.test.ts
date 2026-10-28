@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { OPTIONS } from '../src/options/registry.js';
+import { PRESET_MODULES } from '../src/presets.js';
 
 /**
  * The CLI asks about providers and modules; the template decides what is legal.
@@ -15,7 +16,7 @@ import { OPTIONS } from '../src/options/registry.js';
 
 interface Manifest {
   modules: Array<{ key: string; presets?: string[] }>;
-  presets: Array<{ key: string; modules: string[]; ctaRoute: string }>;
+  presets: Array<{ key: string; modules: string[]; ctaRoutes: string[] }>;
   themes: Array<{ key: string }>;
   moduleSettings: Record<string, string[]>;
 }
@@ -60,5 +61,18 @@ describe('option registry vs template manifest', () => {
         [...manifest.moduleSettings[manifestKey]!].sort()
       );
     }
+  });
+
+  it('knows the module list each preset enables', () => {
+    // The CLI asks questions per module before it has downloaded a template, so
+    // it carries its own copy of these lists; this is what keeps it honest.
+    for (const preset of manifest.presets) {
+      expect([...PRESET_MODULES[preset.key]!].sort(), preset.key).toEqual(
+        [...preset.modules].sort()
+      );
+    }
+    expect(Object.keys(PRESET_MODULES).sort()).toEqual(
+      manifest.presets.map((preset) => preset.key).sort()
+    );
   });
 });

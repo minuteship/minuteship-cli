@@ -148,6 +148,11 @@ export async function collectOptions(
     if (spec.key === 'projectName') continue;
 
     if (spec.kind === 'boolean') {
+      // A toggle whose module is absent is not asked, and must not fall back to
+      // its default either: doing that would leave `enableGoogleLogin: true` on
+      // a project with no auth, and every dependent option would then warn
+      // about a credential nothing reads.
+      if (!isActive(spec, values)) continue;
       if (values[spec.key] === undefined) {
         values[spec.key] = input.yes
           ? Boolean(spec.default)

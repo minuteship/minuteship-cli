@@ -134,21 +134,21 @@
         "cache",
         "notification"
       ],
-      "ctaRoute": "/auth/login"
+      "ctaRoutes": ["/auth/login", "/pricing", "/blog", "/docs"]
     },
     {
       "key": "tools",
       "label": "Tool site",
       "description": "Public AI tools with no accounts or billing",
       "modules": ["ai", "blog", "newsletter", "mail", "cache", "notification"],
-      "ctaRoute": "/ai"
+      "ctaRoutes": ["/ai", "/blog", "/docs"]
     },
     {
       "key": "directory",
       "label": "Directory",
       "description": "A browsable catalogue of links with submissions",
       "modules": ["blog", "newsletter", "mail", "cache", "notification"],
-      "ctaRoute": "/blog"
+      "ctaRoutes": ["/blog", "/docs"]
     }
   ],
   "themes": [

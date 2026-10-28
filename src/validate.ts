@@ -93,6 +93,26 @@ export function validateEmail(value: string): string | null {
   return null;
 }
 
+/**
+ * A mail address as the template stores it: either the bare address or the
+ * display-name form `Name <address>` that mail clients show.
+ *
+ * The template's `mail.fromEmail` and `supportEmail` are rendered into the
+ * `From:` header, so a project that wants "MinuteShip <support@…>" (the usual
+ * case) has to be able to type exactly that.
+ */
+export function validateMailbox(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return 'Email is required.';
+
+  const angled = raw.match(/^(.+?)\s*<([^<>]+)>$/);
+  const address = (angled?.[2] ?? raw).trim();
+  if (!EMAIL_PATTERN.test(address)) {
+    return 'Enter an address, or a display name followed by one: Name <name@example.com>.';
+  }
+  return null;
+}
+
 export function validateGitHubRepo(value: string): string | null {
   const repo = value.trim();
   if (!repo) return 'Repository is required.';

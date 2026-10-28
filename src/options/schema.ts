@@ -1,4 +1,5 @@
 import { PACKAGE_MANAGERS, type PackageManager } from '../types.js';
+import { projectHasModule } from '../presets.js';
 import { OPTIONS, isActive, isProvisionable } from './registry.js';
 import type { CreateOptions, OptionValues } from './types.js';
 
@@ -104,6 +105,8 @@ export function validateResolved(values: CreateOptions): {
     if (error) errors.push(`${spec.message}: ${error}`);
   }
 
+  // Only a project that has accounts needs a way in. A tool site has no auth
+  // module, so having every login method off is the normal state, not an error.
   const logins = [
     'enableCredentialLogin',
     'enableEmailOtpLogin',
@@ -112,7 +115,7 @@ export function validateResolved(values: CreateOptions): {
     'enableAppleLogin',
   ].filter((key) => values[key] === true);
 
-  if (logins.length === 0) {
+  if (logins.length === 0 && projectHasModule(values, 'auth')) {
     errors.push(
       'At least one login method must stay enabled, otherwise nobody can sign in.'
     );

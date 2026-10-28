@@ -150,6 +150,31 @@ describe('rewriteWranglerConfig', () => {
     expect(result).toContain('REPLACE_WITH_KV_NAMESPACE_ID');
   });
 
+  it('drops a binding the project does not need', () => {
+    // A tools site has no storage module, so no bucket was created. Declaring
+    // one would make `wrangler deploy` fail on a missing bucket.
+    const result = rewriteWranglerConfig(WRANGLER_FIXTURE, {
+      projectName: 'acme',
+      bindings: { d1: true, r2: false, kv: true },
+    });
+
+    expect(result).not.toContain('r2_buckets');
+    expect(result).not.toContain('acme-bucket');
+    expect(result).toContain('d1_databases');
+    expect(result).toContain('kv_namespaces');
+  });
+
+  it('keeps every binding when none were ruled out', () => {
+    const result = rewriteWranglerConfig(WRANGLER_FIXTURE, {
+      projectName: 'acme',
+      bindings: { d1: true, r2: true, kv: true },
+    });
+
+    expect(result).toContain('d1_databases');
+    expect(result).toContain('r2_buckets');
+    expect(result).toContain('kv_namespaces');
+  });
+
   it('rejects invalid JSONC', () => {
     expect(() =>
       rewriteWranglerConfig('{ "name": ', { projectName: 'acme' })

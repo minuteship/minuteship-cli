@@ -127,6 +127,19 @@ function editJsonc(
   return applyEdits(source, edits);
 }
 
+/**
+ * Remove a key. `modify(..., [])` would leave `"key": []` behind, which
+ * `wrangler` reads as an empty binding list rather than as "no such binding" —
+ * and the accompanying comment in the template would then describe a binding
+ * the file no longer has.
+ */
+function removeJsoncKey(source: string, jsonPath: (string | number)[]): string {
+  const edits = modify(source, jsonPath, undefined, {
+    formattingOptions: { insertSpaces: true, tabSize: 2 },
+  });
+  return applyEdits(source, edits);
+}
+
 const WRANGLER_SCHEMA_COMMENT = 'node_modules/wrangler/config-schema.json';
 
 export interface WranglerRewriteOptions {
@@ -137,12 +150,22 @@ export interface WranglerRewriteOptions {
   kvNamespaceId?: string;
   /** Bare hostname; written as a custom-domain route. */
   domain?: string;
+  /**
+   * Bindings the project's modules read. Omitted means "all of them", which is
+   * what an unknown module list falls back to.
+   *
+   * A binding that is not needed is *removed* rather than left pointing at a
+   * resource that was never created: `wrangler deploy` refuses to publish a
+   * Worker whose bucket does not exist, and `Env` would advertise a binding that
+   * is undefined at runtime.
+   */
+  bindings?: { d1: boolean; r2: boolean; kv: boolean };
 }
 
 /**
  * Rewrite the Cloudflare Worker config for a new project:
  * - worker name, D1 database name/id, R2 bucket, KV namespace id;
- * - drop the demo custom domain so the generated project never deploys to it.
+ * - drop bindings and the demo custom domain the project does not use.
  */
 export function rewriteWranglerConfig(
   source: string,
@@ -160,27 +183,35 @@ export function rewriteWranglerConfig(
   let content = source;
   content = editJsonc(content, ['name'], options.projectName);
 
+  const bindings = options.bindings ?? { d1: true, r2: true, kv: true };
+
   const database = {
     binding: 'DB',
     database_name: options.databaseName ?? options.projectName,
     database_id: options.databaseId ?? 'REPLACE_WITH_D1_DATABASE_ID',
     migrations_dir: './src/db/migrations',
   };
-  content = editJsonc(content, ['d1_databases'], [database]);
+  content = bindings.d1
+    ? editJsonc(content, ['d1_databases'], [database])
+    : removeJsoncKey(content, ['d1_databases']);
 
-  content = editJsonc(content, ['r2_buckets'], [
-    {
-      bucket_name: options.bucketName ?? options.projectName,
-      binding: 'BUCKET',
-    },
-  ]);
+  content = bindings.r2
+    ? editJsonc(content, ['r2_buckets'], [
+        {
+          bucket_name: options.bucketName ?? options.projectName,
+          binding: 'BUCKET',
+        },
+      ])
+    : removeJsoncKey(content, ['r2_buckets']);
 
-  content = editJsonc(content, ['kv_namespaces'], [
-    {
-      binding: 'CACHE',
-      id: options.kvNamespaceId ?? 'REPLACE_WITH_KV_NAMESPACE_ID',
-    },
-  ]);
+  content = bindings.kv
+    ? editJsonc(content, ['kv_namespaces'], [
+        {
+          binding: 'CACHE',
+          id: options.kvNamespaceId ?? 'REPLACE_WITH_KV_NAMESPACE_ID',
+        },
+      ])
+    : removeJsoncKey(content, ['kv_namespaces']);
 
   content = editJsonc(
     content,

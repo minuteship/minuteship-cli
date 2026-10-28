@@ -77,6 +77,25 @@ describe('renderConfigFile', () => {
     );
   });
 
+  it('writes the project CTA override when it was answered', () => {
+    const base = {
+      preset: 'tools',
+      modules: ['docs'],
+      theme: 'amber',
+      site: {
+        name: 'Acme',
+        title: 'Acme',
+        description: 'Acme.',
+        url: 'https://acme.example.com',
+        locales: ['en'],
+      },
+    } as const;
+
+    expect(renderConfigFile(base)).not.toContain('ctaRoute');
+    const output = renderConfigFile({ ...base, ctaRoute: '/docs' });
+    expect(output).toContain("ctaRoute: '/docs',");
+  });
+
   it('omits empty localization entries', () => {
     const output = renderConfigFile({
       preset: 'saas',

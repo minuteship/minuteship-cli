@@ -52,6 +52,7 @@ export function toTemplateRewriteOptions(
     preset: text(options.preset) ?? 'saas',
     modules,
     theme: text(options.theme) ?? 'amber',
+    ...(text(options.ctaRoute) ? { ctaRoute: text(options.ctaRoute) } : {}),
     site: {
       name: siteName,
       title: text(options.siteTitle) ?? `${siteName} - Built with MinuteShip`,

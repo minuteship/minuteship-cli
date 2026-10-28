@@ -1,4 +1,5 @@
 import { PACKAGE_MANAGERS } from '../types.js';
+import { projectHasModule, selectedModules } from '../presets.js';
 import {
   validateBaseUrl,
   validateClarityProjectId,
@@ -6,6 +7,7 @@ import {
   validateCrispWebsiteId,
   validateDomain,
   validateEmail,
+  validateMailbox,
   validateGitHubRepo,
   validateGoogleAnalyticsId,
   validateSiteName,
@@ -31,11 +33,19 @@ const RUNTIME_TARGETS: readonly OptionTarget[] = [
   'github.secret',
 ];
 
+/**
+ * A yes/no project choice.
+ *
+ * `requiredWhen` decides whether the question is asked at all. A toggle whose
+ * module is absent is not a default to accept — it is a question with no
+ * meaning, and answering it would write env vars nothing reads.
+ */
 const feature = (
   key: string,
   flag: string,
   message: string,
-  defaultValue: boolean
+  defaultValue: boolean,
+  requiredWhen?: (values: OptionValues) => boolean
 ): OptionSpec => ({
   key,
   flag,
@@ -44,6 +54,7 @@ const feature = (
   message,
   default: defaultValue,
   cliOnly: true,
+  ...(requiredWhen ? { requiredWhen } : {}),
 });
 
 const envOption = (
@@ -101,20 +112,9 @@ const buildOption = (
   ...extra,
 });
 
-/**
- * The module keys chosen so far, from the comma-separated `--modules` value.
- *
- * Used by `requiredWhen` predicates: a provider question only applies when the
- * module that needs it is part of the project.
- */
-export function selectedModules(values: OptionValues): string[] {
-  const raw = values.modules;
-  if (typeof raw !== 'string') return [];
-  return raw
-    .split(',')
-    .map((item) => item.trim())
-    .filter((item) => item !== '');
-}
+// `selectedModules` and `projectHasModule` come from `../presets`, so the
+// "which modules does this project have" answer lives in one place.
+export { selectedModules };
 
 /**
  * Single source of truth for every configurable value.
@@ -142,6 +142,44 @@ export const OPTIONS: readonly OptionSpec[] = [
     message: 'Site name (shown in metadata)',
     cliOnly: true,
     validate: validateSiteName,
+  },
+  {
+    key: 'siteTitle',
+    flag: 'site-title',
+    group: 'project',
+    kind: 'string',
+    message: 'Browser title and Open Graph title',
+    hint: 'Defaults to "<site name> - Built with MinuteShip"',
+    cliOnly: true,
+  },
+  {
+    key: 'siteDescription',
+    flag: 'site-description',
+    group: 'project',
+    kind: 'string',
+    message: 'Meta description',
+    hint: 'Shown in search results and social cards',
+    cliOnly: true,
+  },
+  {
+    key: 'locales',
+    flag: 'locales',
+    group: 'project',
+    kind: 'string',
+    message: 'Locales to build',
+    hint: 'Comma-separated, e.g. en,zh — the first is the default',
+    default: 'en,zh',
+    cliOnly: true,
+  },
+  {
+    key: 'ctaRoute',
+    flag: 'cta-route',
+    group: 'features',
+    kind: 'string',
+    message: 'Where the landing page\'s primary button points',
+    hint: 'Leave empty for the preset default, e.g. /docs',
+    cliOnly: true,
+    advanced: true,
   },
   {
     key: 'packageManager',
@@ -322,8 +360,9 @@ export const OPTIONS: readonly OptionSpec[] = [
     group: 'mail',
     kind: 'email',
     message: 'From address for transactional mail',
+    hint: 'Either name@example.com or "Name <name@example.com>"',
     cliOnly: true,
-    validate: validateEmail,
+    validate: validateMailbox,
     advanced: true,
   },
   {
@@ -332,8 +371,9 @@ export const OPTIONS: readonly OptionSpec[] = [
     group: 'mail',
     kind: 'email',
     message: 'Support address shown to users',
+    hint: 'Either name@example.com or "Name <name@example.com>"',
     cliOnly: true,
-    validate: validateEmail,
+    validate: validateMailbox,
     advanced: true,
   },
 
@@ -344,19 +384,22 @@ export const OPTIONS: readonly OptionSpec[] = [
     'enableCredentialLogin',
     'credential-login',
     'Enable email + password login?',
-    true
+    true,
+    (values) => projectHasModule(values, 'auth')
   ),
   feature(
     'enableGoogleLogin',
     'google-login',
     'Enable Google login?',
-    true
+    true,
+    (values) => projectHasModule(values, 'auth')
   ),
   feature(
     'enableDeleteAccount',
     'delete-account',
     'Allow users to delete their account?',
-    true
+    true,
+    (values) => projectHasModule(values, 'auth')
   ),
   secretOption(
     'betterAuthSecret',

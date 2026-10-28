@@ -86,6 +86,9 @@ node dist/index.js delete --dir ./acme --dry-run
 |-------|------|--------------|-------------|
 | Project | _(positional)_ | — | Project name (Lowercase, used as the directory and Worker name) |
 | Project | `--site-name` | — | Site name (shown in metadata) |
+| Project | `--site-title` | — | Browser title and Open Graph title (Defaults to "<site name> - Built with MinuteShip") |
+| Project | `--site-description` | — | Meta description (Shown in search results and social cards) |
+| Project | `--locales` | — | Locales to build (Comma-separated, e.g. en,zh — the first is the default) |
 | Project | `--package-manager` | — | Package manager |
 | Project | `--base-url` | `VITE_BASE_URL` | Public base URL of the site (Used for auth callbacks and SEO) |
 | Project | `--install` / `--no-install` | — | Install dependencies after scaffolding? |
@@ -95,6 +98,7 @@ node dist/index.js delete --dir ./acme --dry-run
 | Project | `--admin-email` | — | Admin email address |
 | Project | `--github-repo` | — | GitHub repository (owner/name) |
 | Project | `--github-visibility` | — | GitHub repository visibility |
+| Features | `--cta-route` | — | Where the landing page's primary button points (Leave empty for the preset default, e.g. /docs) |
 | Features | `--preset` | — | Site type (Fixed for the life of the project) |
 | Features | `--modules` | — | Modules to include (Comma-separated, e.g. auth,payment,blog — see `minuteship modules`) |
 | Features | `--theme` | — | Brand theme |
@@ -135,8 +139,8 @@ node dist/index.js delete --dir ./acme --dry-run
 | Payment | `--waffo-product-pro-yearly` | `VITE_WAFFO_PRODUCT_PRO_YEARLY` | Waffo product id: Pro yearly |
 | Payment | `--waffo-product-lifetime` | `VITE_WAFFO_PRODUCT_LIFETIME` | Waffo product id: Lifetime |
 | Mail | `--mail-provider` | — | Transactional mail provider |
-| Mail | `--mail-from` | — | From address for transactional mail |
-| Mail | `--mail-support` | — | Support address shown to users |
+| Mail | `--mail-from` | — | From address for transactional mail (Either name@example.com or "Name <name@example.com>") |
+| Mail | `--mail-support` | — | Support address shown to users (Either name@example.com or "Name <name@example.com>") |
 | Mail | `--resend-api-key` | `RESEND_API_KEY` | Resend API key |
 | Newsletter | `--newsletter-provider` | — | Newsletter provider |
 | Newsletter | `--auto-subscribe` / `--no-auto-subscribe` | — | Subscribe users automatically after sign-up? |

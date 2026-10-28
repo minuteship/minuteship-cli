@@ -16,6 +16,8 @@ export interface CloudflareResourceIds {
   databaseName?: string;
   bucketName?: string;
   kvNamespaceId?: string;
+  /** Which bindings to keep in `wrangler.jsonc`; see `rewriteWranglerConfig`. */
+  bindings?: { d1: boolean; r2: boolean; kv: boolean };
 }
 
 export interface TemplateRewriteOptions {
@@ -26,6 +28,8 @@ export interface TemplateRewriteOptions {
   modules: readonly string[];
   theme: string;
   site: ConfigSite;
+  /** Landing page primary button target; the preset's own list applies if unset. */
+  ctaRoute?: string;
   /** Module settings, written into the config for the modules that exist. */
   auth?: {
     googleLogin?: boolean;
@@ -101,6 +105,7 @@ export async function applyTemplateRewrites(
       modules: options.modules,
       theme: options.theme,
       site: options.site,
+      ...(options.ctaRoute ? { ctaRoute: options.ctaRoute } : {}),
       ...(options.payment ? { payment: options.payment } : {}),
       ...(options.auth ? { auth: options.auth } : {}),
       ...(options.mail ? { mail: options.mail } : {}),

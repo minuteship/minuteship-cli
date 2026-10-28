@@ -1,10 +1,8 @@
 import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  ensureCloudflareResources,
-  type CloudflareResources,
-} from '../adapters/cloudflare-cli.js';
+import { ensureCloudflareResources, type CloudflareResources } from '../adapters/cloudflare-cli.js';
 import { provisionIntegrations } from '../adapters/index.js';
+import { resolveBindingsFor } from '../bindings.js';
 import { parseEnvFile, readEnvValue } from '../env-file.js';
 import { PreflightError, UsageError } from '../errors.js';
 import { run } from '../exec.js';
@@ -202,6 +200,15 @@ export async function runCreate(
     await mark('install');
   }
 
+  // Bindings come from the copied template's own manifest, which records what
+  // each module reads. Creating the resources a tools site never touches leaves
+  // orphans in the account and makes `wrangler deploy` demand a bucket the
+  // Worker does not have a use for.
+  const bindings = await resolveBindingsFor(targetDir, {
+    modules: toTemplateRewriteOptions(options, authSecret).modules,
+    ...(text(options.preset) ? { preset: text(options.preset) as string } : {}),
+  });
+
   let resources: CloudflareResources | undefined;
   if (options.provision !== false) {
     if (
@@ -210,10 +217,19 @@ export async function runCreate(
       state.cloudflare.kvNamespaceId
     ) {
       resources = {
-        databaseId: state.cloudflare.databaseId,
-        databaseName: state.cloudflare.databaseName ?? options.projectName,
-        bucketName: state.cloudflare.bucketName ?? options.projectName,
-        kvNamespaceId: state.cloudflare.kvNamespaceId,
+        ...(state.cloudflare.databaseId
+          ? {
+              databaseId: state.cloudflare.databaseId,
+              databaseName:
+                state.cloudflare.databaseName ?? options.projectName,
+            }
+          : {}),
+        ...(state.cloudflare.bucketName
+          ? { bucketName: state.cloudflare.bucketName }
+          : {}),
+        ...(state.cloudflare.kvNamespaceId
+          ? { kvNamespaceId: state.cloudflare.kvNamespaceId }
+          : {}),
       };
     } else {
       logger.info('Creating Cloudflare resources…');
@@ -223,6 +239,7 @@ export async function runCreate(
         databaseName: String(options.databaseName),
         bucketName: String(options.bucketName),
         kvName: String(options.kvName),
+        bindings,
         log: (message) => logger.info(message),
       });
       await updateState(targetDir, {
@@ -277,6 +294,7 @@ export async function runCreate(
       targetDir,
       toTemplateRewriteOptions(options, authSecret),
       {
+        bindings,
         ...(resources?.databaseId ? { databaseId: resources.databaseId } : {}),
         ...(resources?.databaseName
           ? { databaseName: resources.databaseName }

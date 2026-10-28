@@ -54,15 +54,15 @@ export function buildPlan(options: CreateOptions): PlanItem[] {
   if (options.provision !== false) {
     items.push({
       status: 'auto',
-      title: 'Create missing Cloudflare resources',
-      detail: `D1 ${String(options.databaseName)}, R2 ${String(options.bucketName)}, KV ${String(options.kvName)}`,
+      title: 'Create the Cloudflare resources the chosen modules need',
+      detail: `D1 ${String(options.databaseName)} always; KV ${String(options.kvName)} and R2 ${String(options.bucketName)} only when a module reads them`,
     });
   } else {
     items.push({
       status: 'manual',
-      title: 'Create Cloudflare D1, R2, and KV resources',
+      title: 'Create the Cloudflare resources the chosen modules need',
       detail:
-        'Run `wrangler d1 create`, `wrangler r2 bucket create`, and `wrangler kv namespace create`, then fill wrangler.jsonc.',
+        'Run `wrangler d1 create`, `wrangler r2 bucket create`, and `wrangler kv namespace create` for each binding you use, then fill wrangler.jsonc.',
     });
   }
 
