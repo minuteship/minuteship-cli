@@ -6,7 +6,7 @@ const DEFAULT_REPO =
   process.env.CREATE_MINUTESHIP_REPO ?? 'minuteship/minuteship';
 // Pin a released template tag so a template change on main cannot break a CLI
 // that was built against an older layout. Bump it together with the template.
-export const TEMPLATE_VERSION = 'v0.2.0';
+export const TEMPLATE_VERSION = 'v0.2.1';
 const DEFAULT_REF = process.env.CREATE_MINUTESHIP_REF ?? TEMPLATE_VERSION;
 
 export interface TemplateSource {
