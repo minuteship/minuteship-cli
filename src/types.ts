@@ -6,8 +6,6 @@ export interface ScaffoldOptions {
   siteName: string;
   packageManager: PackageManager;
   paymentProvider: 'stripe' | 'creem' | 'waffo' | '';
-  enableDocs: boolean;
-  enableCredits: boolean;
   /** Create Cloudflare D1/R2/KV resources and write their ids into wrangler.jsonc. */
   createCloudflareResources: boolean;
 }

@@ -7,95 +7,82 @@ function text(value: unknown): string | undefined {
     : undefined;
 }
 
+/** Split a comma-separated flag value into module keys. */
+function list(value: unknown): string[] {
+  if (typeof value !== 'string') return [];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
+}
+
+function paymentProvider(
+  value: unknown
+): { provider: 'stripe' | 'creem' | 'waffo' } | undefined {
+  const provider = text(value);
+  return provider === 'stripe' || provider === 'creem' || provider === 'waffo'
+    ? { provider }
+    : undefined;
+}
+
 function flag(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined;
 }
 
 /**
- * Convert the loose resolved options into the typed shape used by the
- * template rewriters. Keeps `string | boolean | undefined` out of files.ts.
+ * Turn the resolved options into the template rewrite input.
+ *
+ * The shape mirrors `minuteship.config.ts`: a project is a preset, a module
+ * list, a theme and a brand. Feature toggles do not appear here because they no
+ * longer exist in the template — a capability is included or it is not, and the
+ * build prunes what is not.
  */
 export function toTemplateRewriteOptions(
   options: CreateOptions,
   authSecret: string
 ): TemplateRewriteOptions {
-  const provider = text(options.paymentProvider);
+  const siteName = String(options.siteName);
+  const domain = text(options.domain);
+  const baseUrl = text(options.baseUrl);
+  const modules = list(options.modules);
+  const payment = paymentProvider(options.paymentProvider);
 
   return {
     projectName: String(options.projectName),
-    siteName: String(options.siteName),
+    preset: text(options.preset) ?? 'saas',
+    modules,
+    theme: text(options.theme) ?? 'amber',
+    site: {
+      name: siteName,
+      title: text(options.siteTitle) ?? `${siteName} - Built with MinuteShip`,
+      description:
+        text(options.siteDescription) ?? `${siteName} is built with MinuteShip.`,
+      url: baseUrl ?? (domain ? `https://${domain}` : 'http://localhost:3000'),
+      locales: text(options.locales)
+        ? list(options.locales)
+        : ['en', 'zh'],
+    },
+    // These are project choices, not just env values: the app reads mail,
+    // newsletter and notification providers from `minuteship.config.ts`, so a
+    // provider picked here has to be written there or the answer goes nowhere.
+    auth: {
+      googleLogin: flag(options.enableGoogleLogin),
+      credentialLogin: flag(options.enableCredentialLogin),
+      deleteAccount: flag(options.enableDeleteAccount),
+    },
+    mail: {
+      provider: text(options.mailProvider),
+      fromEmail: text(options.mailFromEmail),
+      supportEmail: text(options.mailSupportEmail),
+    },
+    newsletter: {
+      provider: text(options.newsletterProvider),
+      autoSubscribeAfterSignUp: flag(options.autoSubscribeAfterSignUp),
+    },
+    notification: { provider: text(options.notificationProvider) },
     packageManager: options.packageManager,
     authSecret,
-    paymentProvider:
-      provider === 'stripe' || provider === 'creem' || provider === 'waffo'
-        ? provider
-        : '',
-    enableDocs: flag(options.enableDocs) ?? true,
-    enableCredits: flag(options.enableCredits) ?? true,
-    ...(flag(options.enableBlog) !== undefined
-      ? { enableBlog: flag(options.enableBlog) }
-      : {}),
-    ...(flag(options.enableStorage) !== undefined
-      ? { enableStorage: flag(options.enableStorage) }
-      : {}),
-    ...(flag(options.enableCache) !== undefined
-      ? { enableCache: flag(options.enableCache) }
-      : {}),
-    ...(flag(options.enableNewsletter) !== undefined
-      ? { enableNewsletter: flag(options.enableNewsletter) }
-      : {}),
-    ...(flag(options.enableNotification) !== undefined
-      ? { enableNotification: flag(options.enableNotification) }
-      : {}),
-    ...(text(options.newsletterProvider)
-      ? {
-          newsletterProvider: text(options.newsletterProvider) as
-            | 'resend'
-            | 'beehiiv'
-            | 'mailcheap',
-        }
-      : {}),
-    ...(text(options.notificationProvider)
-      ? {
-          notificationProvider: text(options.notificationProvider) as
-            | 'discord'
-            | 'feishu',
-        }
-      : {}),
-    ...(text(options.mailProvider)
-      ? {
-          mailProvider: text(options.mailProvider) as 'cloudflare' | 'resend',
-        }
-      : {}),
-    ...(text(options.mailFromEmail)
-      ? { mailFromEmail: text(options.mailFromEmail) }
-      : {}),
-    ...(text(options.mailSupportEmail)
-      ? { mailSupportEmail: text(options.mailSupportEmail) }
-      : {}),
-    ...(flag(options.autoSubscribeAfterSignUp) !== undefined
-      ? { autoSubscribeAfterSignUp: flag(options.autoSubscribeAfterSignUp) }
-      : {}),
-    ...(text(options.domain) ? { domain: text(options.domain) } : {}),
-    auth: {
-      ...(flag(options.enableGoogleLogin) !== undefined
-        ? { enableGoogleLogin: flag(options.enableGoogleLogin) }
-        : {}),
-      ...(flag(options.enableGithubLogin) !== undefined
-        ? { enableGithubLogin: flag(options.enableGithubLogin) }
-        : {}),
-      ...(flag(options.enableAppleLogin) !== undefined
-        ? { enableAppleLogin: flag(options.enableAppleLogin) }
-        : {}),
-      ...(flag(options.enableEmailOtpLogin) !== undefined
-        ? { enableEmailOtpLogin: flag(options.enableEmailOtpLogin) }
-        : {}),
-      ...(flag(options.enableCredentialLogin) !== undefined
-        ? { enableCredentialLogin: flag(options.enableCredentialLogin) }
-        : {}),
-      ...(flag(options.enableDeleteAccount) !== undefined
-        ? { enableDeleteAccount: flag(options.enableDeleteAccount) }
-        : {}),
-    },
+    ...(domain ? { domain } : {}),
+    ...(payment ? { payment } : {}),
   };
 }

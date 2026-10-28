@@ -1,12 +1,6 @@
 import type { CreateOptions } from './options/types.js';
 
-export type PlanId =
-  | 'proMonthly'
-  | 'proYearly'
-  | 'lifetime'
-  | 'creditsStarter'
-  | 'creditsPro'
-  | 'creditsScale';
+export type PlanId = 'proMonthly' | 'proYearly' | 'lifetime';
 
 export interface PlanPriceDefinition {
   id: PlanId;
@@ -18,14 +12,14 @@ export interface PlanPriceDefinition {
   amount: number;
   currency: string;
   interval?: 'month' | 'year';
-  credits?: number;
-  /** Only provisioned when credits are enabled. */
-  requiresCredits?: boolean;
 }
 
 /**
- * Mirrors the amounts in the template's `src/config/website.ts`. Keeping the
- * catalog here means provisioning does not have to parse a TypeScript config.
+ * Mirrors the plans in the template's `src/config/website.ts` (`price.plans`);
+ * keeping the catalog here means provisioning does not have to parse a
+ * TypeScript config. `tests/plans.test.ts` pins it against the template's
+ * `.env.example` snapshot, so a plan added there fails here until it is added
+ * above.
  */
 export const PLAN_PRICES: readonly PlanPriceDefinition[] = [
   {
@@ -54,45 +48,19 @@ export const PLAN_PRICES: readonly PlanPriceDefinition[] = [
     amount: 19900,
     currency: 'USD',
   },
-  {
-    id: 'creditsStarter',
-    key: 'credits-starter',
-    name: 'Credits starter',
-    description: '100 credits',
-    amount: 500,
-    currency: 'USD',
-    credits: 100,
-    requiresCredits: true,
-  },
-  {
-    id: 'creditsPro',
-    key: 'credits-pro',
-    name: 'Credits pro',
-    description: '500 credits',
-    amount: 2000,
-    currency: 'USD',
-    credits: 500,
-    requiresCredits: true,
-  },
-  {
-    id: 'creditsScale',
-    key: 'credits-scale',
-    name: 'Credits scale',
-    description: '2000 credits',
-    amount: 5000,
-    currency: 'USD',
-    credits: 2000,
-    requiresCredits: true,
-  },
 ];
 
-/** Price plans that apply to the current project configuration. */
+/**
+ * Price plans that apply to the current project configuration.
+ *
+ * Every plan in the catalog is provisioned: the template's pricing page reads
+ * them unconditionally, so creating a subset would leave checkout pointing at
+ * ids that were never minted.
+ */
 export function activePlanPrices(
-  options: CreateOptions
+  _options: CreateOptions
 ): PlanPriceDefinition[] {
-  return PLAN_PRICES.filter(
-    (plan) => plan.requiresCredits !== true || options.enableCredits === true
-  );
+  return [...PLAN_PRICES];
 }
 
 /** The option key holding a provider's id for a plan. */

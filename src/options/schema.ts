@@ -145,12 +145,6 @@ export function validateResolved(values: CreateOptions): {
     );
   }
 
-  if (values.enableCredits === true && provider === '') {
-    warnings.push(
-      'Credits are enabled without a payment provider, so credit packs cannot be purchased.'
-    );
-  }
-
   if (values.deploy === true) {
     const baseUrl = stringValue(values.baseUrl);
     // Auth callbacks and SEO metadata are baked in at build time, so a

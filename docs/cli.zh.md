@@ -33,10 +33,13 @@ node dist/index.js --help
 node dist/index.js create acme
 ```
 
-流程：preflight → 下载模板 → 按功能开关复制文件 → 创建 Cloudflare D1/R2/KV → 创建支付/邮件资源 →
-改写 `wrangler.jsonc` 与 `website.ts` → 写入 `.env.local` / `.env.production` → 安装依赖 → 本地迁移 →
-初始化 git → 部署（除非 `--no-deploy`）→ 写入支付价格 ID → 上传 Worker secrets → 创建管理员账号 →
-可选创建并推送私有 GitHub 仓库。
+流程：preflight → 下载模板 → 写入 `minuteship.config.ts`（站点类型、模块、主题、品牌、模块设置）→
+创建 Cloudflare D1/R2/KV → 创建支付/邮件资源 → 改写 `wrangler.jsonc` → 写入 `.env.local` / `.env.production` →
+安装依赖 → 本地迁移 → 初始化 git → 部署（除非 `--no-deploy`）→ 写入支付价格 ID → 上传 Worker secrets →
+创建管理员账号 → 可选创建并推送私有 GitHub 仓库。
+
+`minuteship.config.ts` 是唯一描述「项目是什么」的文件。模板在构建期从它推导路由、导航、外壳 UI、主题 CSS 与
+`websiteConfig`，因此 CLI 不会修改 `src/` 下的任何源码，也就不存在第二份需要同步的答案。
 
 所有选项都可以交互询问或通过命令行参数指定；布尔选项同时支持 `--no-` 形式。`--yes` 接受所有默认值，绝不提问。
 
@@ -92,18 +95,11 @@ node dist/index.js delete --dir ./acme --dry-run
 | Project | `--admin-email` | — | Admin email address |
 | Project | `--github-repo` | — | GitHub repository (owner/name) |
 | Project | `--github-visibility` | — | GitHub repository visibility |
-| Features | `--docs` / `--no-docs` | — | Enable the product docs site (/docs)? |
-| Features | `--credits` / `--no-credits` | — | Enable the credits ledger? |
-| Features | `--blog` / `--no-blog` | — | Enable the blog? |
-| Features | `--storage` / `--no-storage` | — | Enable file storage (R2)? |
-| Features | `--cache` / `--no-cache` | — | Enable server-side caching (KV)? |
-| Features | `--newsletter` / `--no-newsletter` | — | Enable the newsletter signup? |
-| Features | `--notification` / `--no-notification` | — | Enable staff notifications? |
+| Features | `--preset` | — | Site type (Fixed for the life of the project) |
+| Features | `--modules` | — | Modules to include (Comma-separated, e.g. auth,payment,blog — see `minuteship modules`) |
+| Features | `--theme` | — | Brand theme |
 | Features | `--credential-login` / `--no-credential-login` | — | Enable email + password login? |
-| Features | `--email-otp-login` / `--no-email-otp-login` | — | Enable email one-time-code login? |
 | Features | `--google-login` / `--no-google-login` | — | Enable Google login? |
-| Features | `--github-login` / `--no-github-login` | — | Enable GitHub login? |
-| Features | `--apple-login` / `--no-apple-login` | — | Enable Apple login? |
 | Features | `--delete-account` / `--no-delete-account` | — | Allow users to delete their account? |
 | Cloudflare | `--provision` / `--no-provision` | — | Create missing Cloudflare resources automatically? |
 | Cloudflare | `--deploy` / `--no-deploy` | — | Build and deploy to Cloudflare after scaffolding? |
@@ -119,10 +115,6 @@ node dist/index.js delete --dir ./acme --dry-run
 | Auth | `--google-client-id` | `GOOGLE_CLIENT_ID` | Google OAuth client id |
 | Auth | `--google-client-secret` | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | Auth | `--google-extension-client-id` | `GOOGLE_EXTENSION_CLIENT_ID` | Browser-extension Google client id |
-| Auth | `--github-client-id` | `GITHUB_CLIENT_ID` | GitHub OAuth client id |
-| Auth | `--github-client-secret` | `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret |
-| Auth | `--apple-client-id` | `APPLE_CLIENT_ID` | Apple service id |
-| Auth | `--apple-client-secret` | `APPLE_CLIENT_SECRET` | Apple client secret (signed JWT) |
 | Payment | `--payment` | `VITE_PAYMENT_PROVIDER` | Payment provider |
 | Payment | `--provision-payment` / `--no-provision-payment` | — | Create products, prices, and webhooks through the provider API? |
 | Payment | `--stripe-secret-key` | `STRIPE_SECRET_KEY` | Stripe secret key |
@@ -130,27 +122,18 @@ node dist/index.js delete --dir ./acme --dry-run
 | Payment | `--stripe-price-pro-monthly` | `VITE_STRIPE_PRICE_PRO_MONTHLY` | Stripe price id: Pro monthly |
 | Payment | `--stripe-price-pro-yearly` | `VITE_STRIPE_PRICE_PRO_YEARLY` | Stripe price id: Pro yearly |
 | Payment | `--stripe-price-lifetime` | `VITE_STRIPE_PRICE_LIFETIME` | Stripe price id: Lifetime |
-| Payment | `--stripe-price-credits-starter` | `VITE_STRIPE_PRICE_CREDITS_STARTER` | Stripe price id: Credits starter |
-| Payment | `--stripe-price-credits-pro` | `VITE_STRIPE_PRICE_CREDITS_PRO` | Stripe price id: Credits pro |
-| Payment | `--stripe-price-credits-scale` | `VITE_STRIPE_PRICE_CREDITS_SCALE` | Stripe price id: Credits scale |
 | Payment | `--creem-api-key` | `CREEM_API_KEY` | Creem API key |
 | Payment | `--creem-webhook-secret` | `CREEM_WEBHOOK_SECRET` | Creem webhook secret |
 | Payment | `--creem-debug` / `--no-creem-debug` | `CREEM_DEBUG` | Use the Creem test environment? |
 | Payment | `--creem-product-pro-monthly` | `VITE_CREEM_PRODUCT_PRO_MONTHLY` | Creem product id: Pro monthly |
 | Payment | `--creem-product-pro-yearly` | `VITE_CREEM_PRODUCT_PRO_YEARLY` | Creem product id: Pro yearly |
 | Payment | `--creem-product-lifetime` | `VITE_CREEM_PRODUCT_LIFETIME` | Creem product id: Lifetime |
-| Payment | `--creem-product-credits-starter` | `VITE_CREEM_PRODUCT_CREDITS_STARTER` | Creem product id: Credits starter |
-| Payment | `--creem-product-credits-pro` | `VITE_CREEM_PRODUCT_CREDITS_PRO` | Creem product id: Credits pro |
-| Payment | `--creem-product-credits-scale` | `VITE_CREEM_PRODUCT_CREDITS_SCALE` | Creem product id: Credits scale |
 | Payment | `--waffo-merchant-id` | `WAFFO_MERCHANT_ID` | Waffo merchant id |
 | Payment | `--waffo-private-key` | `WAFFO_PRIVATE_KEY` | Waffo private key |
 | Payment | `--waffo-debug` / `--no-waffo-debug` | `WAFFO_DEBUG` | Use the Waffo test environment? |
 | Payment | `--waffo-product-pro-monthly` | `VITE_WAFFO_PRODUCT_PRO_MONTHLY` | Waffo product id: Pro monthly |
 | Payment | `--waffo-product-pro-yearly` | `VITE_WAFFO_PRODUCT_PRO_YEARLY` | Waffo product id: Pro yearly |
 | Payment | `--waffo-product-lifetime` | `VITE_WAFFO_PRODUCT_LIFETIME` | Waffo product id: Lifetime |
-| Payment | `--waffo-product-credits-starter` | `VITE_WAFFO_PRODUCT_CREDITS_STARTER` | Waffo product id: Credits starter |
-| Payment | `--waffo-product-credits-pro` | `VITE_WAFFO_PRODUCT_CREDITS_PRO` | Waffo product id: Credits pro |
-| Payment | `--waffo-product-credits-scale` | `VITE_WAFFO_PRODUCT_CREDITS_SCALE` | Waffo product id: Credits scale |
 | Mail | `--mail-provider` | — | Transactional mail provider |
 | Mail | `--mail-from` | — | From address for transactional mail |
 | Mail | `--mail-support` | — | Support address shown to users |
@@ -173,9 +156,6 @@ node dist/index.js delete --dir ./acme --dry-run
 | Analytics | `--umami` / `--no-umami` | — | Enable Umami? |
 | Analytics | `--umami-website-id` | `VITE_UMAMI_WEBSITE_ID` | Umami website id |
 | Analytics | `--umami-script` | `VITE_UMAMI_SCRIPT` | Umami script URL |
-| Analytics | `--openpanel` / `--no-openpanel` | — | Enable OpenPanel? |
-| Analytics | `--openpanel-client-id` | `VITE_OPENPANEL_CLIENT_ID` | OpenPanel client id |
-| Analytics | `--openpanel-script` | `VITE_OPENPANEL_SCRIPT` | OpenPanel script URL (optional, defaults to openpanel.dev) |
 | Chat | `--crisp` / `--no-crisp` | — | Enable the Crisp chat widget? |
 | Chat | `--crisp-website-id` | `VITE_CRISP_WEBSITE_ID` | Crisp website id |
 | AI | `--fal-key` | `FAL_KEY` | fal.ai API key (AI image playground) |

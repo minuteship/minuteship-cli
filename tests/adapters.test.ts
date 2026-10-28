@@ -45,7 +45,6 @@ function options(overrides: Record<string, unknown> = {}) {
       paymentProvider: 'stripe',
       stripeSecretKey: 'sk_test_123',
       baseUrl: 'https://app.example.com',
-      enableCredits: true,
       ...overrides,
     },
     {}
@@ -59,23 +58,14 @@ afterEach(() => {
 describe('plan catalog', () => {
   it('maps every plan to the provider option key', () => {
     const plans = activePlanPrices(options());
-    expect(plans.map((plan) => plan.id)).toContain('proMonthly');
-    expect(planOptionKey('stripe', plans[0]!)).toBe('stripePriceProMonthly');
-    expect(
-      planOptionKey(
-        'stripe',
-        plans.find((plan) => plan.id === 'creditsStarter')!
-      )
-    ).toBe('stripePriceCreditsStarter');
-  });
-
-  it('drops credit packs when credits are disabled', () => {
-    const plans = activePlanPrices(options({ enableCredits: false }));
     expect(plans.map((plan) => plan.id)).toEqual([
       'proMonthly',
       'proYearly',
       'lifetime',
     ]);
+    expect(planOptionKey('stripe', plans[0]!)).toBe('stripePriceProMonthly');
+    expect(planOptionKey('creem', plans[1]!)).toBe('creemProductProYearly');
+    expect(planOptionKey('waffo', plans[2]!)).toBe('waffoProductLifetime');
   });
 });
 
@@ -121,7 +111,8 @@ describe('provisionStripe', () => {
 
     expect(result.status).toBe('created');
     expect(result.values.stripePriceProMonthly).toBe('price_1');
-    expect(result.values.stripePriceCreditsScale).toBe('price_6');
+    // Three plans: pro monthly, pro yearly, lifetime.
+    expect(result.values.stripePriceLifetime).toBe('price_3');
     expect(result.values.stripeWebhookSecret).toBe('whsec_1');
     expect(result.manualInstructions).toEqual([]);
 
@@ -199,7 +190,6 @@ describe('provisionStripe', () => {
       baseUrl: 'https://app.example.com',
       // Only the monthly plan is left to resolve; the others are explicit.
       options: options({
-        enableCredits: false,
         stripePriceProYearly: 'price_yearly',
         stripePriceLifetime: 'price_lifetime',
       }),
@@ -238,7 +228,6 @@ describe('provisionStripe', () => {
       projectName: 'acme',
       baseUrl: 'https://app.example.com',
       options: options({
-        enableCredits: false,
         stripePriceProMonthly: 'price_manual',
       }),
     });
@@ -278,7 +267,6 @@ function creemOptions(overrides: Record<string, unknown> = {}) {
       creemApiKey: 'creem_test_key',
       creemDebug: true,
       baseUrl: 'https://app.example.com',
-      enableCredits: true,
       ...overrides,
     },
     {}
@@ -321,7 +309,7 @@ describe('provisionCreem', () => {
 
     expect(result.status).toBe('created');
     expect(result.values.creemProductProMonthly).toBe('prod_1');
-    expect(result.values.creemProductCreditsScale).toBe('prod_6');
+    expect(result.values.creemProductLifetime).toBe('prod_3');
     expect(result.values.creemWebhookSecret).toBe('whsec_1');
 
     expect(
@@ -397,7 +385,6 @@ describe('provisionCreem', () => {
       projectName: 'acme',
       baseUrl: 'https://app.example.com',
       options: creemOptions({
-        enableCredits: false,
         creemProductProYearly: 'prod_yearly',
         creemProductLifetime: 'prod_lifetime',
       }),

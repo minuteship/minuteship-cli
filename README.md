@@ -50,18 +50,19 @@ Environment:
    `.wrangler`, `dist`, `.output`, `.tanstack`, `.content-collections`, the
    generated Paraglide output, build/test reports, and every `.env*` file
    except `.env.example`.
-3. Rewrites:
+3. Writes `minuteship.config.ts` — the site type, module list, theme, brand and
+   module settings. The template derives routes, navigation, shell UI, theme
+   CSS and `websiteConfig` from it at build time.
+4. Rewrites identity and infrastructure only:
    - `package.json` name (and drops the inherited `packageManager` field);
    - `.cta.json` project name;
    - `wrangler.jsonc` worker name, D1 database, R2 bucket, KV namespace, and
-     removes the MinuteShip demo custom domain;
-   - `src/config/website.ts` social links and the docs/credits/payment flags;
-   - `project.inlang/messages/{en,zh}.json` site name, title, and description.
-4. Writes `.env.local` with a freshly generated `BETTER_AUTH_SECRET`.
-5. Optionally creates Cloudflare resources with `wrangler` and writes their
+     removes the MinuteShip demo custom domain.
+5. Writes `.env.local` with a freshly generated `BETTER_AUTH_SECRET`.
+6. Optionally creates Cloudflare resources with `wrangler` and writes their
    ids back into `wrangler.jsonc` (comments preserved).
-6. Runs the package manager's `install`.
-7. On failure, removes the target directory so no half-scaffolded project is
+7. Runs the package manager's `install`.
+8. On failure, removes the target directory so no half-scaffolded project is
    left behind.
 
 The template's `LICENSE` file is copied unchanged and is never rewritten.

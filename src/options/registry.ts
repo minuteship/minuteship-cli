@@ -102,6 +102,21 @@ const buildOption = (
 });
 
 /**
+ * The module keys chosen so far, from the comma-separated `--modules` value.
+ *
+ * Used by `requiredWhen` predicates: a provider question only applies when the
+ * module that needs it is part of the project.
+ */
+export function selectedModules(values: OptionValues): string[] {
+  const raw = values.modules;
+  if (typeof raw !== 'string') return [];
+  return raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
+}
+
+/**
  * Single source of truth for every configurable value.
  *
  * The array order is also the guided-flow order, so conditional options must
@@ -210,25 +225,45 @@ export const OPTIONS: readonly OptionSpec[] = [
   },
 
   // ---------------------------------------------------------------------------
-  // Feature switches (written into src/config/website.ts)
+  // What the site is (written into minuteship.config.ts)
   // ---------------------------------------------------------------------------
-  feature('enableDocs', 'docs', 'Enable the product docs site (/docs)?', true),
-  feature('enableCredits', 'credits', 'Enable the credits ledger?', true),
-  feature('enableBlog', 'blog', 'Enable the blog?', true),
-  feature('enableStorage', 'storage', 'Enable file storage (R2)?', true),
-  feature('enableCache', 'cache', 'Enable server-side caching (KV)?', true),
-  feature(
-    'enableNewsletter',
-    'newsletter',
-    'Enable the newsletter signup?',
-    true
-  ),
-  feature(
-    'enableNotification',
-    'notification',
-    'Enable staff notifications?',
-    true
-  ),
+  {
+    key: 'preset',
+    flag: 'preset',
+    group: 'features',
+    kind: 'enum',
+    message: 'Site type',
+    hint: 'Fixed for the life of the project',
+    default: 'saas',
+    cliOnly: true,
+    choices: [
+      { label: 'SaaS — accounts, payments, dashboard', value: 'saas' },
+      { label: 'Tool site — public tools, no accounts', value: 'tools' },
+      { label: 'Directory — a browsable catalogue', value: 'directory' },
+    ],
+  },
+  {
+    key: 'modules',
+    flag: 'modules',
+    group: 'features',
+    kind: 'string',
+    message: 'Modules to include',
+    hint: 'Comma-separated, e.g. auth,payment,blog — see `minuteship modules`',
+    cliOnly: true,
+  },
+  {
+    key: 'theme',
+    flag: 'theme',
+    group: 'features',
+    kind: 'enum',
+    message: 'Brand theme',
+    default: 'amber',
+    cliOnly: true,
+    choices: [
+      { label: 'Amber — warm', value: 'amber' },
+      { label: 'Ocean — cool blue', value: 'ocean' },
+    ],
+  },
   {
     key: 'newsletterProvider',
     flag: 'newsletter-provider',
@@ -242,7 +277,7 @@ export const OPTIONS: readonly OptionSpec[] = [
       { label: 'Beehiiv', value: 'beehiiv' },
       { label: 'MailCheap', value: 'mailcheap' },
     ],
-    requiredWhen: (values) => values.enableNewsletter === true,
+    requiredWhen: (values) => selectedModules(values).includes('newsletter'),
   },
   {
     key: 'autoSubscribeAfterSignUp',
@@ -252,7 +287,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     message: 'Subscribe users automatically after sign-up?',
     default: true,
     cliOnly: true,
-    requiredWhen: (values) => values.enableNewsletter === true,
+    requiredWhen: (values) => selectedModules(values).includes('newsletter'),
   },
   {
     key: 'notificationProvider',
@@ -266,7 +301,7 @@ export const OPTIONS: readonly OptionSpec[] = [
       { label: 'Discord', value: 'discord' },
       { label: 'Feishu', value: 'feishu' },
     ],
-    requiredWhen: (values) => values.enableNotification === true,
+    requiredWhen: (values) => selectedModules(values).includes('notification'),
   },
   {
     key: 'mailProvider',
@@ -312,26 +347,11 @@ export const OPTIONS: readonly OptionSpec[] = [
     true
   ),
   feature(
-    'enableEmailOtpLogin',
-    'email-otp-login',
-    'Enable email one-time-code login?',
-    true
-  ),
-  // OAuth needs credentials that only the operator can create, so the guided
-  // flow leaves these off and enables them in the admin console later.
-  feature(
     'enableGoogleLogin',
     'google-login',
     'Enable Google login?',
-    false
+    true
   ),
-  feature(
-    'enableGithubLogin',
-    'github-login',
-    'Enable GitHub login?',
-    false
-  ),
-  feature('enableAppleLogin', 'apple-login', 'Enable Apple login?', false),
   feature(
     'enableDeleteAccount',
     'delete-account',
@@ -386,55 +406,6 @@ export const OPTIONS: readonly OptionSpec[] = [
     'Browser-extension Google client id',
     { targets: RUNTIME_TARGETS, advanced: true }
   ),
-  envOption(
-    'githubClientId',
-    'github-client-id',
-    'GITHUB_CLIENT_ID',
-    'auth',
-    'GitHub OAuth client id',
-    {
-      targets: RUNTIME_TARGETS,
-      requiredWhen: (values) => values.enableGithubLogin === true,
-      manual: true,
-    }
-  ),
-  secretOption(
-    'githubClientSecret',
-    'github-client-secret',
-    'GITHUB_CLIENT_SECRET',
-    'auth',
-    'GitHub OAuth client secret',
-    {
-      targets: RUNTIME_TARGETS,
-      requiredWhen: (values) => values.enableGithubLogin === true,
-      manual: true,
-    }
-  ),
-  envOption(
-    'appleClientId',
-    'apple-client-id',
-    'APPLE_CLIENT_ID',
-    'auth',
-    'Apple service id',
-    {
-      targets: RUNTIME_TARGETS,
-      requiredWhen: (values) => values.enableAppleLogin === true,
-      manual: true,
-    }
-  ),
-  secretOption(
-    'appleClientSecret',
-    'apple-client-secret',
-    'APPLE_CLIENT_SECRET',
-    'auth',
-    'Apple client secret (signed JWT)',
-    {
-      targets: RUNTIME_TARGETS,
-      requiredWhen: (values) => values.enableAppleLogin === true,
-      manual: true,
-    }
-  ),
-
   // ---------------------------------------------------------------------------
   // Payment
   // ---------------------------------------------------------------------------
@@ -525,45 +496,6 @@ export const OPTIONS: readonly OptionSpec[] = [
       provisionedBy: 'stripe',
     }
   ),
-  buildOption(
-    'stripePriceCreditsStarter',
-    'stripe-price-credits-starter',
-    'VITE_STRIPE_PRICE_CREDITS_STARTER',
-    'payment',
-    'Stripe price id: Credits starter',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'stripe' && values.enableCredits === true,
-      provisionedBy: 'stripe',
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'stripePriceCreditsPro',
-    'stripe-price-credits-pro',
-    'VITE_STRIPE_PRICE_CREDITS_PRO',
-    'payment',
-    'Stripe price id: Credits pro',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'stripe' && values.enableCredits === true,
-      provisionedBy: 'stripe',
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'stripePriceCreditsScale',
-    'stripe-price-credits-scale',
-    'VITE_STRIPE_PRICE_CREDITS_SCALE',
-    'payment',
-    'Stripe price id: Credits scale',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'stripe' && values.enableCredits === true,
-      provisionedBy: 'stripe',
-      advanced: true,
-    }
-  ),
   secretOption(
     'creemApiKey',
     'creem-api-key',
@@ -630,45 +562,6 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       requiredWhen: (values) => values.paymentProvider === 'creem',
       provisionedBy: 'creem',
-    }
-  ),
-  buildOption(
-    'creemProductCreditsStarter',
-    'creem-product-credits-starter',
-    'VITE_CREEM_PRODUCT_CREDITS_STARTER',
-    'payment',
-    'Creem product id: Credits starter',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'creem' && values.enableCredits === true,
-      provisionedBy: 'creem',
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'creemProductCreditsPro',
-    'creem-product-credits-pro',
-    'VITE_CREEM_PRODUCT_CREDITS_PRO',
-    'payment',
-    'Creem product id: Credits pro',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'creem' && values.enableCredits === true,
-      provisionedBy: 'creem',
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'creemProductCreditsScale',
-    'creem-product-credits-scale',
-    'VITE_CREEM_PRODUCT_CREDITS_SCALE',
-    'payment',
-    'Creem product id: Credits scale',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'creem' && values.enableCredits === true,
-      provisionedBy: 'creem',
-      advanced: true,
     }
   ),
   envOption(
@@ -740,45 +633,6 @@ export const OPTIONS: readonly OptionSpec[] = [
       manual: true,
     }
   ),
-  buildOption(
-    'waffoProductCreditsStarter',
-    'waffo-product-credits-starter',
-    'VITE_WAFFO_PRODUCT_CREDITS_STARTER',
-    'payment',
-    'Waffo product id: Credits starter',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'waffo' && values.enableCredits === true,
-      manual: true,
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'waffoProductCreditsPro',
-    'waffo-product-credits-pro',
-    'VITE_WAFFO_PRODUCT_CREDITS_PRO',
-    'payment',
-    'Waffo product id: Credits pro',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'waffo' && values.enableCredits === true,
-      manual: true,
-      advanced: true,
-    }
-  ),
-  buildOption(
-    'waffoProductCreditsScale',
-    'waffo-product-credits-scale',
-    'VITE_WAFFO_PRODUCT_CREDITS_SCALE',
-    'payment',
-    'Waffo product id: Credits scale',
-    {
-      requiredWhen: (values) =>
-        values.paymentProvider === 'waffo' && values.enableCredits === true,
-      manual: true,
-      advanced: true,
-    }
-  ),
 
   // ---------------------------------------------------------------------------
   // Mail
@@ -793,7 +647,7 @@ export const OPTIONS: readonly OptionSpec[] = [
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
         values.mailProvider === 'resend' ||
-        (values.enableNewsletter === true &&
+        (selectedModules(values).includes('newsletter') &&
           values.newsletterProvider === 'resend'),
       manual: true,
     }
@@ -811,7 +665,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNewsletter === true &&
+        selectedModules(values).includes('newsletter') &&
         values.newsletterProvider === 'beehiiv',
       manual: true,
     }
@@ -825,7 +679,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNewsletter === true &&
+        selectedModules(values).includes('newsletter') &&
         values.newsletterProvider === 'beehiiv',
       manual: true,
     }
@@ -839,7 +693,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNewsletter === true &&
+        selectedModules(values).includes('newsletter') &&
         values.newsletterProvider === 'mailcheap',
       manual: true,
     }
@@ -853,7 +707,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNewsletter === true &&
+        selectedModules(values).includes('newsletter') &&
         values.newsletterProvider === 'mailcheap',
       manual: true,
     }
@@ -871,7 +725,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNotification === true &&
+        selectedModules(values).includes('notification') &&
         values.notificationProvider === 'discord',
       manual: true,
     }
@@ -885,7 +739,7 @@ export const OPTIONS: readonly OptionSpec[] = [
     {
       targets: RUNTIME_TARGETS,
       requiredWhen: (values) =>
-        values.enableNotification === true &&
+        selectedModules(values).includes('notification') &&
         values.notificationProvider === 'feishu',
       manual: true,
     }
@@ -986,39 +840,6 @@ export const OPTIONS: readonly OptionSpec[] = [
       manual: true,
     }
   ),
-  {
-    key: 'enableOpenPanel',
-    flag: 'openpanel',
-    group: 'analytics',
-    kind: 'boolean',
-    message: 'Enable OpenPanel?',
-    default: false,
-    cliOnly: true,
-  },
-  buildOption(
-    'openpanelClientId',
-    'openpanel-client-id',
-    'VITE_OPENPANEL_CLIENT_ID',
-    'analytics',
-    'OpenPanel client id',
-    {
-      requiredWhen: (values) => values.enableOpenPanel === true,
-      manual: true,
-    }
-  ),
-  buildOption(
-    'openpanelScript',
-    'openpanel-script',
-    'VITE_OPENPANEL_SCRIPT',
-    'analytics',
-    'OpenPanel script URL (optional, defaults to openpanel.dev)',
-    {
-      requiredWhen: (values) => values.enableOpenPanel === true,
-      validate: validateUrl,
-      manual: true,
-    }
-  ),
-
   // ---------------------------------------------------------------------------
   // Chat and AI
   // ---------------------------------------------------------------------------

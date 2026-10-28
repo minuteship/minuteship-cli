@@ -8,8 +8,6 @@ import {
   generateAuthSecret,
   pathExists,
   rewritePackageJson,
-  rewriteSiteMessages,
-  rewriteWebsiteConfig,
   rewriteWranglerConfig,
   shouldExclude,
 } from '../src/files.js';
@@ -56,32 +54,6 @@ const WRANGLER_FIXTURE = `{
 }
 `;
 
-const WEBSITE_FIXTURE = `export const websiteConfig = {
-  social: {
-    github: 'https://github.com/example',
-    discord: 'https://discord.gg/example',
-    twitter: 'https://x.com/example',
-    youtube: 'https://www.youtube.com/@example',
-  },
-  docs: {
-    enable: true,
-  },
-  newsletter: {
-    enable: true,
-  },
-  payment: {
-    enable: true,
-    provider: isPaymentEnabled ? paymentProvider : undefined,
-  },
-  credits: {
-    enable: true,
-    costs: {
-      summarizeText: 1,
-    },
-  },
-};
-`;
-
 describe('shouldExclude', () => {
   it('keeps application source files', () => {
     expect(shouldExclude('src/routes/index.tsx')).toBe(false);
@@ -107,6 +79,9 @@ describe('shouldExclude', () => {
       'playwright-report/index.html',
       '.worker-configuration.d.ts.swp',
       'packages/create-minuteship/package.json',
+      // Editor and local-tool state in the template checkout.
+      '.idea/workspace.xml',
+      '.code-review-graph/graph.db',
     ]) {
       expect(shouldExclude(relativePath)).toBe(true);
     }
@@ -202,71 +177,6 @@ describe('rewritePackageJson / rewriteCtaJson', () => {
       name: 'acme',
       private: true,
     });
-  });
-});
-
-describe('rewriteWebsiteConfig', () => {
-  it('clears demo links and applies feature flags', () => {
-    const result = rewriteWebsiteConfig(WEBSITE_FIXTURE, {
-      paymentProvider: 'stripe',
-      enableDocs: false,
-      enableCredits: false,
-    });
-
-    expect(result).not.toContain('MinuteShip');
-    expect(result).not.toContain('discord.gg/example');
-    expect(result).toContain(`github: ''`);
-    expect(result).toMatch(/docs: \{\n\s*enable: false,\n\s*\},/);
-    expect(result).toMatch(/credits: \{\n\s*enable: false,/);
-    expect(result).toMatch(/payment: \{\n\s*enable: true,/);
-  });
-
-  it('disables payment when no provider was chosen', () => {
-    const result = rewriteWebsiteConfig(WEBSITE_FIXTURE, {
-      paymentProvider: '',
-      enableDocs: true,
-      enableCredits: true,
-    });
-
-    expect(result).toMatch(/payment: \{\n\s*enable: false,/);
-  });
-
-  it('fails loudly when a marker is missing', () => {
-    expect(() =>
-      rewriteWebsiteConfig('export const websiteConfig = {};', {
-        paymentProvider: '',
-        enableDocs: true,
-        enableCredits: true,
-      })
-    ).toThrow(/social block/);
-  });
-});
-
-describe('rewriteSiteMessages', () => {
-  it('replaces the demo site metadata', () => {
-    const source = JSON.stringify({
-      site_name: 'MinuteShip Demo',
-      site_title: 'MinuteShip',
-      site_description: 'MinuteShip description',
-      other_key: 'unchanged',
-    });
-
-    const result = JSON.parse(
-      rewriteSiteMessages(source, { siteName: 'Acme' })
-    ) as Record<string, string>;
-
-    expect(result.site_name).toBe('Acme');
-    expect(result.site_title).toBe('Acme');
-    expect(result.site_description).toBe('Acme is built with MinuteShip.');
-    expect(result.other_key).toBe('unchanged');
-  });
-
-  it('rejects message files without site_name', () => {
-    expect(() =>
-      rewriteSiteMessages(JSON.stringify({ other: 'x' }), {
-        siteName: 'Acme',
-      })
-    ).toThrow(/site_name/);
   });
 });
 

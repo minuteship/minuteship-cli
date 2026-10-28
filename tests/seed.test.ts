@@ -10,13 +10,11 @@ describe('collectPriceRows', () => {
       VITE_STRIPE_PRICE_PRO_MONTHLY: 'price_monthly',
       VITE_STRIPE_PRICE_PRO_YEARLY: 'price_yearly',
       VITE_STRIPE_PRICE_LIFETIME: 'price_lifetime',
-      VITE_STRIPE_PRICE_CREDITS_STARTER: 'price_credits_starter',
       VITE_PAYMENT_PROVIDER: 'stripe',
       STRIPE_SECRET_KEY: 'sk_live_should_not_leak',
     });
 
     expect(rows).toEqual([
-      { planKey: 'credits-starter', priceId: 'price_credits_starter' },
       { planKey: 'lifetime', priceId: 'price_lifetime' },
       { planKey: 'pro-monthly', priceId: 'price_monthly' },
       { planKey: 'pro-yearly', priceId: 'price_yearly' },
@@ -27,12 +25,8 @@ describe('collectPriceRows', () => {
     expect(
       collectPriceRows('creem', {
         VITE_CREEM_PRODUCT_PRO_MONTHLY: 'prod_creem_monthly',
-        VITE_CREEM_PRODUCT_CREDITS_SCALE: 'prod_creem_scale',
       })
-    ).toEqual([
-      { planKey: 'credits-scale', priceId: 'prod_creem_scale' },
-      { planKey: 'pro-monthly', priceId: 'prod_creem_monthly' },
-    ]);
+    ).toEqual([{ planKey: 'pro-monthly', priceId: 'prod_creem_monthly' }]);
 
     expect(
       collectPriceRows('waffo', {

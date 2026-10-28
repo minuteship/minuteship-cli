@@ -1,0 +1,163 @@
+{
+  "$comment": "Generated from src/modules/manifest.ts and src/theme/presets.ts by scripts/generate-manifest-json.ts. Do not edit by hand; run `pnpm manifest:generate`. Read by the MinuteShip CLI to build its prompts.",
+  "modules": [
+    {
+      "key": "auth",
+      "label": "Authentication",
+      "description": "Sign up, sign in, password reset and account deletion",
+      "bindings": ["d1"],
+      "env": ["BETTER_AUTH_SECRET"],
+      "tables": ["user", "session", "account", "verification", "apikey"],
+      "routes": ["/auth"],
+      "shell": true,
+      "optional": true
+    },
+    {
+      "key": "admin",
+      "label": "Admin dashboard",
+      "description": "User management for site administrators",
+      "requires": ["auth"],
+      "presets": ["saas"],
+      "routes": ["/admin"],
+      "optional": true
+    },
+    {
+      "key": "payment",
+      "label": "Payments",
+      "description": "Checkout, billing portal and webhooks (Stripe, Creem or Waffo)",
+      "requires": ["auth"],
+      "presets": ["saas"],
+      "bindings": ["d1"],
+      "env": [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "CREEM_API_KEY",
+        "CREEM_WEBHOOK_SECRET",
+        "WAFFO_MERCHANT_ID",
+        "WAFFO_PRIVATE_KEY"
+      ],
+      "tables": ["payment"],
+      "routes": ["/pricing"],
+      "shell": true,
+      "optional": true
+    },
+    {
+      "key": "blog",
+      "label": "Blog",
+      "description": "Markdown posts with pagination and RSS-friendly metadata",
+      "presets": ["saas", "tools", "directory"],
+      "routes": ["/blog"],
+      "optional": true
+    },
+    {
+      "key": "ai",
+      "label": "AI tools",
+      "description": "Summarization, translation, image and text playback tools",
+      "presets": ["saas", "tools"],
+      "env": ["FAL_KEY"],
+      "routes": ["/ai"],
+      "optional": true
+    },
+    {
+      "key": "newsletter",
+      "label": "Newsletter",
+      "description": "Waitlist and subscribe forms (Resend, Beehiiv or MailCheap)",
+      "presets": ["saas", "tools", "directory"],
+      "env": ["RESEND_API_KEY", "BEEHIIV_API_KEY", "MAILCHEAP_API_KEY"],
+      "routes": ["/waitlist"],
+      "accountRoutes": ["account/routes"],
+      "shell": true,
+      "optional": true
+    },
+    {
+      "key": "mail",
+      "label": "Transactional email",
+      "description": "Verification and notification emails (Resend or Cloudflare)",
+      "presets": ["saas", "tools", "directory"],
+      "env": [
+        "RESEND_API_KEY",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN"
+      ],
+      "optional": true
+    },
+    {
+      "key": "storage",
+      "label": "File storage",
+      "description": "Per-user uploads backed by an R2 bucket",
+      "requires": ["auth"],
+      "presets": ["saas"],
+      "bindings": ["r2", "d1"],
+      "tables": ["user_files"],
+      "routes": ["/settings/files"],
+      "optional": true
+    },
+    {
+      "key": "cache",
+      "label": "Server cache",
+      "description": "KV-backed cache for expensive reads",
+      "presets": ["saas", "tools", "directory"],
+      "bindings": ["kv"],
+      "optional": true
+    },
+    {
+      "key": "notification",
+      "label": "Notifications",
+      "description": "Discord or Feishu webhooks on signup and payment events",
+      "presets": ["saas", "tools", "directory"],
+      "env": ["DISCORD_WEBHOOK_URL", "FEISHU_WEBHOOK_URL"],
+      "optional": true
+    }
+  ],
+  "presets": [
+    {
+      "key": "saas",
+      "label": "SaaS",
+      "description": "Accounts, payments and a dashboard",
+      "modules": [
+        "auth",
+        "admin",
+        "payment",
+        "blog",
+        "ai",
+        "newsletter",
+        "mail",
+        "storage",
+        "cache",
+        "notification"
+      ],
+      "ctaRoute": "/auth/login"
+    },
+    {
+      "key": "tools",
+      "label": "Tool site",
+      "description": "Public AI tools with no accounts or billing",
+      "modules": ["ai", "blog", "newsletter", "mail", "cache", "notification"],
+      "ctaRoute": "/ai"
+    },
+    {
+      "key": "directory",
+      "label": "Directory",
+      "description": "A browsable catalogue of links with submissions",
+      "modules": ["blog", "newsletter", "mail", "cache", "notification"],
+      "ctaRoute": "/blog"
+    }
+  ],
+  "themes": [
+    {
+      "key": "amber",
+      "label": "Amber",
+      "description": "Warm amber brand color"
+    },
+    {
+      "key": "ocean",
+      "label": "Ocean",
+      "description": "Cool blue brand color"
+    }
+  ],
+  "moduleSettings": {
+    "mail.provider": ["resend", "cloudflare"],
+    "newsletter.provider": ["resend", "beehiiv", "mailcheap"],
+    "notification.provider": ["discord", "feishu"]
+  }
+}

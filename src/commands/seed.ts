@@ -26,9 +26,6 @@ const PLAN_KEY_BY_SUFFIX: Record<string, string> = {
   PRO_MONTHLY: 'pro-monthly',
   PRO_YEARLY: 'pro-yearly',
   LIFETIME: 'lifetime',
-  CREDITS_STARTER: 'credits-starter',
-  CREDITS_PRO: 'credits-pro',
-  CREDITS_SCALE: 'credits-scale',
 };
 
 export interface PriceRow {

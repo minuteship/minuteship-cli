@@ -12,6 +12,22 @@ function has(value: unknown): boolean {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+/** `auth, blog, payment (+3 more)` — enough to check without wrapping lines. */
+function moduleSummary(options: CreateOptions): string {
+  const modules =
+    typeof options.modules === 'string'
+      ? options.modules
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '')
+      : [];
+  if (modules.length === 0) return 'preset defaults';
+  const shown = modules.slice(0, 3).join(', ');
+  return modules.length > 3
+    ? `${shown} (+${modules.length - 3} more)`
+    : shown;
+}
+
 /**
  * Human-readable summary of everything `create` will do. `--dry-run` prints
  * this instead of touching the network or the filesystem.
@@ -52,8 +68,14 @@ export function buildPlan(options: CreateOptions): PlanItem[] {
 
   items.push({
     status: 'auto',
-    title: 'Rewrite wrangler.jsonc and src/config/website.ts',
-    detail: `Worker ${String(options.workerName)}, docs=${Boolean(options.enableDocs)}, credits=${Boolean(options.enableCredits)}`,
+    title: 'Rewrite wrangler.jsonc',
+    detail: `Worker ${String(options.workerName)}${options.domain ? `, route ${String(options.domain)}` : ''}`,
+  });
+
+  items.push({
+    status: 'auto',
+    title: 'Write minuteship.config.ts — the site type, modules, settings and brand',
+    detail: `Preset ${String(options.preset ?? 'saas')}, theme ${String(options.theme ?? 'amber')}, modules: ${moduleSummary(options)}`,
   });
 
   items.push({
@@ -117,8 +139,6 @@ export function buildPlan(options: CreateOptions): PlanItem[] {
 
   for (const [enabled, label, callback] of [
     [options.enableGoogleLogin, 'Google', 'google'],
-    [options.enableGithubLogin, 'GitHub', 'github'],
-    [options.enableAppleLogin, 'Apple', 'apple'],
   ] as const) {
     if (enabled !== true) continue;
     const clientKey = `${callback}ClientId`;
@@ -164,13 +184,6 @@ export function buildPlan(options: CreateOptions): PlanItem[] {
       title: 'GitHub repository',
       detail: 'Skipped. Run `create-minuteship deploy --github` later.',
     });
-  }
-
-  if (options.enableDocs !== true) {
-    items.push({ status: 'skip', title: 'Product docs site' });
-  }
-  if (options.enableCredits !== true) {
-    items.push({ status: 'skip', title: 'Credits ledger' });
   }
 
   return items;

@@ -111,7 +111,14 @@ describe('collectOptions', () => {
 
   it('lets manual credentials be filled in after deployment', async () => {
     const { values, warnings } = await collectOptions({
-      initial: { projectName: 'acme', createAdmin: false, deploy: false },
+      initial: {
+        projectName: 'acme',
+        createAdmin: false,
+        deploy: false,
+        modules: 'mail',
+        mailProvider: 'resend',
+        preset: 'tools',
+      },
       yes: true,
       advanced: false,
       env: {},

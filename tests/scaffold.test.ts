@@ -1,24 +1,29 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyTemplateRewrites } from '../src/scaffold.js';
-import type { ScaffoldOptions } from '../src/types.js';
+import type { TemplateRewriteOptions } from '../src/scaffold.js';
 
-const options: ScaffoldOptions = {
+const options: TemplateRewriteOptions = {
   projectName: 'acme',
-  siteName: 'Acme SaaS',
+  preset: 'saas',
+  modules: ['auth', 'payment', 'blog'],
+  theme: 'ocean',
+  site: {
+    name: "Acme's SaaS",
+    title: 'Acme - ship faster',
+    description: 'Acme is a SaaS built with MinuteShip.',
+    url: 'https://acme.example.com',
+    locales: ['en', 'zh'],
+  },
   packageManager: 'pnpm',
-  paymentProvider: '',
-  enableDocs: false,
-  enableCredits: true,
-  createCloudflareResources: false,
+  authSecret: 'a'.repeat(64),
+  domain: 'acme.example.com',
+  payment: { provider: 'stripe' },
 };
 
 async function writeFixture(root: string) {
-  await mkdir(path.join(root, 'src/config'), { recursive: true });
-  await mkdir(path.join(root, 'project.inlang/messages'), { recursive: true });
-
   const files: Record<string, string> = {
     'package.json': JSON.stringify({
       name: 'minuteship',
@@ -39,24 +44,8 @@ async function writeFixture(root: string) {
   ],
   "r2_buckets": [{ "bucket_name": "minuteship", "binding": "BUCKET" }],
   "kv_namespaces": [{ "binding": "CACHE", "id": "0123456789abcdef0123456789abcdef" }],
-  "routes": [{ "pattern": "demo.example.com", "custom_domain": true }]
+  "routes": []
 }
-`,
-    'src/config/website.ts': `export const websiteConfig = {
-  social: {
-    github: 'https://github.com/example',
-    twitter: 'https://x.com/example',
-  },
-  docs: {
-    enable: true,
-  },
-  payment: {
-    enable: true,
-  },
-  credits: {
-    enable: true,
-  },
-};
 `,
     '.env.example': [
       "VITE_BASE_URL='http://localhost:3000'",
@@ -65,22 +54,13 @@ async function writeFixture(root: string) {
     ].join('\n'),
   };
 
-  for (const locale of ['en', 'zh']) {
-    files[`project.inlang/messages/${locale}.json`] = JSON.stringify({
-      site_name: 'MinuteShip Demo',
-      site_title: 'MinuteShip',
-      site_description: 'MinuteShip description',
-      keep_me: 'yes',
-    });
-  }
-
   for (const [relativePath, content] of Object.entries(files)) {
     await writeFile(path.join(root, relativePath), content);
   }
 }
 
 describe('applyTemplateRewrites', () => {
-  it('rewrites a copied template without touching license or unrelated keys', async () => {
+  it('rewrites identity, infrastructure and the project config', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'ct-scaffold-'));
     await writeFixture(root);
 
@@ -97,36 +77,41 @@ describe('applyTemplateRewrites', () => {
     ) as Record<string, unknown>;
     expect(cta.projectName).toBe('acme');
 
-    const wrangler = await readFile(
-      path.join(root, 'wrangler.jsonc'),
-      'utf8'
-    );
+    const wrangler = await readFile(path.join(root, 'wrangler.jsonc'), 'utf8');
     expect(wrangler).toContain('// template comment');
     expect(wrangler).toContain('"name": "acme"');
-    expect(wrangler).not.toContain('demo.example.com');
+    expect(wrangler).toContain('"pattern": "acme.example.com"');
 
-    const website = await readFile(
-      path.join(root, 'src/config/website.ts'),
+    const config = await readFile(
+      path.join(root, 'minuteship.config.ts'),
       'utf8'
     );
-    expect(website).toMatch(/docs: \{\n\s*enable: false,/);
-    expect(website).toMatch(/credits: \{\n\s*enable: true,/);
-    expect(website).toMatch(/payment: \{\n\s*enable: false,/);
+    expect(config).toContain(
+      "import type { MinuteshipConfig } from './src/config/project-config.ts';"
+    );
+    expect(config).toContain("preset: 'saas'");
+    expect(config).toContain("theme: 'ocean'");
+    expect(config).toContain("    'auth',");
+    expect(config).toContain("    'payment',");
+    expect(config).toContain("    'blog',");
+    // Site names are user data, so they must survive quoting verbatim.
+    expect(config).toContain("name: 'Acme\\'s SaaS'");
+    expect(config).toContain("provider: 'stripe'");
 
-    for (const locale of ['en', 'zh']) {
-      const messages = JSON.parse(
-        await readFile(
-          path.join(root, `project.inlang/messages/${locale}.json`),
-          'utf8'
-        )
-      ) as Record<string, string>;
-      expect(messages.site_name).toBe('Acme SaaS');
-      expect(messages.keep_me).toBe('yes');
-    }
+    const envLocal = await readFile(path.join(root, '.env.local'), 'utf8');
+    expect(envLocal).toContain(`BETTER_AUTH_SECRET='${options.authSecret}'`);
+    expect(envLocal).toContain("VITE_BASE_URL='http://localhost:3000'");
+  });
+
+  it('generates a fresh secret when none is passed in', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'ct-scaffold-'));
+    await writeFixture(root);
+
+    const { authSecret: _ignored, ...withoutSecret } = options;
+    await applyTemplateRewrites(root, withoutSecret);
 
     const envLocal = await readFile(path.join(root, '.env.local'), 'utf8');
     const secret = envLocal.match(/BETTER_AUTH_SECRET='([0-9a-f]+)'/)?.[1];
     expect(secret).toMatch(/^[0-9a-f]{64}$/);
-    expect(envLocal).toContain("VITE_BASE_URL='http://localhost:3000'");
   });
 });
