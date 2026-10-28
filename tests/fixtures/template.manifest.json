@@ -93,6 +93,14 @@
       "optional": true
     },
     {
+      "key": "docs",
+      "label": "Documentation",
+      "description": "Markdown documentation with search-ready sections and a TOC",
+      "presets": [],
+      "routes": ["/docs"],
+      "optional": true
+    },
+    {
       "key": "cache",
       "label": "Server cache",
       "description": "KV-backed cache for expensive reads",
