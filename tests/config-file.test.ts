@@ -131,7 +131,6 @@ describe('renderConfigFile', () => {
       mail: {
         provider: 'resend',
         fromEmail: 'Acme <hi@acme.example.com>',
-        supportEmail: 'help@acme.example.com',
       },
       newsletter: { provider: 'beehiiv', autoSubscribeAfterSignUp: false },
       notification: { provider: 'feishu' },
@@ -142,10 +141,33 @@ describe('renderConfigFile', () => {
     expect(saas).toContain('    deleteAccount: false,');
     expect(saas).toContain("    provider: 'resend',");
     expect(saas).toContain("    fromEmail: 'Acme <hi@acme.example.com>',");
+    // The visible address belongs to `site`, not to the mail block: it has to
+    // survive the mail module being dropped.
+    expect(saas).not.toContain('supportEmail');
     expect(saas).toContain("    provider: 'beehiiv',");
     expect(saas).toContain('    autoSubscribeAfterSignUp: false,');
     expect(saas).toContain('  notification: {');
     expect(saas).toContain("    provider: 'feishu',");
+  });
+
+  it('writes the site support address outside the mail block', () => {
+    const output = renderConfigFile({
+      preset: 'tools',
+      modules: ['blog'],
+      theme: 'amber',
+      site: {
+        name: 'Acme',
+        title: 'Acme',
+        description: 'Acme.',
+        url: 'https://acme.example.com',
+        locales: ['en'],
+        supportEmail: 'hello@acme.example.com',
+      },
+    });
+
+    // No mail module, yet the contact page still has somewhere to point.
+    expect(output).toContain("    supportEmail: 'hello@acme.example.com',");
+    expect(output).not.toContain('  mail: {');
   });
 
   it('omits module settings for modules the project does not have', () => {

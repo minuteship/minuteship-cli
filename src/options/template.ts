@@ -62,6 +62,11 @@ export function toTemplateRewriteOptions(
       locales: text(options.locales)
         ? list(options.locales)
         : ['en', 'zh'],
+      // The support address is brand data: the contact page shows it whether or
+      // not this project can send mail, so it belongs on `site`.
+      ...(text(options.mailSupportEmail)
+        ? { supportEmail: text(options.mailSupportEmail) }
+        : {}),
     },
     // These are project choices, not just env values: the app reads mail,
     // newsletter and notification providers from `minuteship.config.ts`, so a
@@ -74,7 +79,6 @@ export function toTemplateRewriteOptions(
     mail: {
       provider: text(options.mailProvider),
       fromEmail: text(options.mailFromEmail),
-      supportEmail: text(options.mailSupportEmail),
     },
     newsletter: {
       provider: text(options.newsletterProvider),

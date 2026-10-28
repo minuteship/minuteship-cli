@@ -21,6 +21,8 @@ export interface ConfigSite {
   description: string;
   url: string;
   locales: readonly string[];
+  /** Address visitors write to; shown even when the site cannot send mail. */
+  supportEmail?: string;
   localized?: Record<string, { title?: string; description?: string }>;
 }
 
@@ -117,6 +119,9 @@ export function renderConfigFile(input: ConfigFileInput): string {
   lines.push(`    description: ${quote(input.site.description)},`);
   lines.push(`    url: ${quote(input.site.url)},`);
   lines.push(`    locales: [${input.site.locales.map(quote).join(', ')}],`);
+  if (input.site.supportEmail) {
+    lines.push(`    supportEmail: ${quote(input.site.supportEmail)},`);
+  }
 
   const localized = Object.entries(input.site.localized ?? {}).filter(
     ([, value]) => value.title !== undefined || value.description !== undefined
@@ -168,7 +173,9 @@ export function renderConfigFile(input: ConfigFileInput): string {
     pushBlock(lines, 'mail', {
       provider: str(input.mail?.provider),
       fromEmail: str(input.mail?.fromEmail),
-      supportEmail: str(input.mail?.supportEmail),
+      // The visible address lives on `site`, so every page can show it whether
+      // or not this project can send mail. Writing it here too would be a
+      // second copy of the same string.
     });
   }
 
