@@ -51,17 +51,24 @@ function parseJsonArray<T>(stdout: string): T[] {
   }
 }
 
+/**
+ * Create a resource unless one with this name already exists.
+ *
+ * `wrangler create` is not idempotent — a second run fails on the name clash —
+ * so an existing resource is discovered first and reused. A failed create is
+ * only fatal when it is not the "already exists" case, which can still happen
+ * when the list call was rate-limited or blocked.
+ */
 async function ensureD1(
   input: CloudflareResourceInput
 ): Promise<{ id: string; name: string }> {
-  const list = await wrangler(
-    input,
-    ['d1', 'list', '--json'],
-    { allowFailure: true }
-  );
+  const list = await wrangler(input, ['d1', 'list', '--json'], {
+    allowFailure: true,
+  });
 
-  const existing = parseJsonArray<{ uuid?: string; name?: string }>(list.stdout)
-    .find((database) => database.name === input.databaseName);
+  const existing = parseJsonArray<{ uuid?: string; name?: string }>(
+    list.stdout
+  ).find((database) => database.name === input.databaseName);
 
   if (existing?.uuid) {
     input.log?.(`Reusing D1 database ${input.databaseName}.`);
@@ -69,30 +76,51 @@ async function ensureD1(
   }
 
   input.log?.(`Creating D1 database ${input.databaseName}…`);
-  const created = await wrangler(input, [
-    'd1',
-    'create',
-    input.databaseName,
-    '--json',
-  ]);
-  const id = parseD1DatabaseId(created.stdout);
-  if (!id) {
+  const created = await wrangler(
+    input,
+    ['d1', 'create', input.databaseName],
+    { allowFailure: true }
+  );
+
+  // `d1 create` prints a config snippet on success and an error on a clash;
+  // both are parsed the same way because the id is what matters.
+  const id = parseD1DatabaseId(created.stdout + created.stderr);
+  if (id) return { id, name: input.databaseName };
+
+  if (created.exitCode === 0) {
     throw new Error(
       `Could not read the D1 database id from wrangler output: ${summarizeCommandError(created.stdout)}`
     );
   }
-  return { id, name: input.databaseName };
+
+  // A clash here means the list call above did not see it (rate limit, or a
+  // name owned by another account). Re-listing is the only way to get its id.
+  const retry = await wrangler(input, ['d1', 'list', '--json'], {
+    allowFailure: true,
+  });
+  const found = parseJsonArray<{ uuid?: string; name?: string }>(
+    retry.stdout
+  ).find((database) => database.name === input.databaseName);
+  if (found?.uuid) {
+    input.log?.(`Reusing D1 database ${input.databaseName}.`);
+    return { id: found.uuid, name: input.databaseName };
+  }
+
+  throw new Error(
+    `wrangler d1 create failed: ${summarizeCommandError(created.stderr)}`
+  );
 }
 
 async function ensureKv(input: CloudflareResourceInput): Promise<string> {
-  const list = await wrangler(
-    input,
-    ['kv', 'namespace', 'list', '--json'],
-    { allowFailure: true }
-  );
+  // `kv namespace list` prints JSON by default; it has no `--json` flag, and
+  // passing one fails the command outright on wrangler 4.
+  const list = await wrangler(input, ['kv', 'namespace', 'list'], {
+    allowFailure: true,
+  });
 
-  const existing = parseJsonArray<{ id?: string; title?: string }>(list.stdout)
-    .find((namespace) => namespace.title === input.kvName);
+  const existing = parseJsonArray<{ id?: string; title?: string }>(
+    list.stdout
+  ).find((namespace) => namespace.title === input.kvName);
 
   if (existing?.id) {
     input.log?.(`Reusing KV namespace ${input.kvName}.`);
@@ -100,35 +128,39 @@ async function ensureKv(input: CloudflareResourceInput): Promise<string> {
   }
 
   input.log?.(`Creating KV namespace ${input.kvName}…`);
-  const created = await wrangler(input, [
-    'kv',
-    'namespace',
-    'create',
-    input.kvName,
-    '--json',
-  ]);
-  const id = parseKvNamespaceId(created.stdout);
-  if (!id) {
+  const created = await wrangler(
+    input,
+    ['kv', 'namespace', 'create', input.kvName],
+    { allowFailure: true }
+  );
+
+  const id = parseKvNamespaceId(created.stdout + created.stderr);
+  if (id) return id;
+
+  if (created.exitCode === 0) {
     throw new Error(
       `Could not read the KV namespace id from wrangler output: ${summarizeCommandError(created.stdout)}`
     );
   }
-  return id;
+
+  throw new Error(
+    `wrangler kv namespace create failed: ${summarizeCommandError(created.stderr)}`
+  );
 }
 
 async function ensureR2(input: CloudflareResourceInput): Promise<string> {
-  const list = await wrangler(
-    input,
-    ['r2', 'bucket', 'list', '--json'],
-    { allowFailure: true }
-  );
+  // `r2 bucket list` prints `name:  <bucket>` lines; it accepts no `--json`.
+  const list = await wrangler(input, ['r2', 'bucket', 'list'], {
+    allowFailure: true,
+  });
 
-  const existing = parseJsonArray<{ name?: string }>(list.stdout).find(
-    (bucket) => bucket.name === input.bucketName
-  );
-  if (existing?.name) {
+  const existing = [...list.stdout.matchAll(/^name:\s+(\S+)$/gm)]
+    .map((match) => match[1])
+    .find((name) => name === input.bucketName);
+
+  if (existing) {
     input.log?.(`Reusing R2 bucket ${input.bucketName}.`);
-    return existing.name;
+    return existing;
   }
 
   input.log?.(`Creating R2 bucket ${input.bucketName}…`);
